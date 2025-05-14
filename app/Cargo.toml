@@ -1,0 +1,15 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+#driver = { path = "../driver" }
+libc = "0.2"
+bindings = { path = "../bindings" }
+hidapi = { version = "2.6.3" }
+anyhow = { version = "1.0.98" }
+thiserror = { version = "2.0.12" }
+core-foundation = "0.10.0"
+core-foundation-sys = "0.8.7"
+

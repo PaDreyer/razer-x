@@ -1,0 +1,212 @@
+use std::{ffi::CStr, ptr};
+use core_foundation::base::TCFType;
+use core_foundation::string::CFString;
+use core_foundation_sys::string::{CFStringGetCString, kCFStringEncodingUTF8};
+use libc::c_char;
+use bindings::{
+    io_registry_entry_t,
+    io_iterator_t,
+    IOIteratorNext,
+    IOObjectRelease,
+    IORegistryEntryCreateCFProperty,
+    IORegistryEntryGetChildIterator,
+    IORegistryGetRootEntry,
+    IORegistryEntryFromPath,
+    kIOMasterPortDefault,
+    KERN_SUCCESS,
+};
+
+///! Get the name of the entry (USB device) from the IORegistry
+unsafe fn get_usb_device_name(entry: io_registry_entry_t) -> Option<String> {
+    let cf_key = CFString::new("USB Product Name");
+    let raw = IORegistryEntryCreateCFProperty(
+        entry,
+        cf_key.as_concrete_TypeRef(),
+        ptr::null_mut(),
+        0,
+    );
+
+    if raw.is_null() {
+        return None;
+    }
+
+    let mut buf = [0 as c_char; 256];
+    let success = CFStringGetCString(
+        raw as _,
+        buf.as_mut_ptr(),
+        buf.len() as isize,
+        kCFStringEncodingUTF8,
+    );
+    if success == 0 {
+        return None;
+    }
+
+    Some(CStr::from_ptr(buf.as_ptr()).to_string_lossy().into_owned())
+}
+
+///! Walk the USB device tree and print the names of the devices
+unsafe fn walk(entry: io_registry_entry_t, depth: usize) {
+    let indent = "  ".repeat(depth);
+    if let Some(name) = get_usb_device_name(entry) {
+        println!("{}🖱️ Found device: {}", indent, name);
+        if name == "Razer Basilisk V3 Pro" {
+            println!("{}✅ That’s your mouse.", indent);
+            // -> Hier kannst du IOCreatePlugInInterfaceForService(...) verwenden
+        }
+    }
+
+    let mut children: io_iterator_t = 0;
+    let result = IORegistryEntryGetChildIterator(
+        entry,
+        b"IOService\0".as_ptr() as *const i8,
+        &mut children,
+    );
+
+    if result == KERN_SUCCESS as i32 {
+        loop {
+            let child = IOIteratorNext(children);
+            if child == 0 {
+                break;
+            }
+
+            walk(child, depth + 1);
+            IOObjectRelease(child);
+        }
+        IOObjectRelease(children);
+    }
+}
+
+///! Main function to start the USB device tree traversal
+fn main() {
+    unsafe {
+        let root = IORegistryGetRootEntry(kIOMasterPortDefault);
+        if root == 0 {
+            panic!("❌ Failed to get IORegistry root");
+        }
+
+        let entry = IORegistryEntryFromPath(
+            kIOMasterPortDefault,
+            b"IOUSB:/\0".as_ptr() as *const i8,
+        );
+        if entry == 0 {
+            println!("❌ IORegistryEntryFromPath failed");
+            return;
+        }
+
+        println!("🔍 Traversing USB registry tree...");
+        walk(entry, 0);
+        IOObjectRelease(entry);
+    }
+}
+/*
+extern crate libc;
+use std::ptr;
+use core_foundation::base::TCFType;
+use libc::c_void;
+use core_foundation::uuid::{CFUUID, CFUUIDBytes, CFUUIDRef};
+use core_foundation::string::CFString;
+use core_foundation_sys::number::{kCFNumberSInt32Type, CFNumberCreate};
+use bindings::*;
+
+unsafe fn create_razer_matching() -> CFMutableDictionaryRef {
+    let matching = IOServiceMatching(b"IOUSBHostDevice\0".as_ptr() as *const i8);
+    if matching.is_null() {
+        panic!("IOServiceMatching failed");
+    }
+
+    let key = CFString::new("idVendor").as_concrete_TypeRef();
+    let value = 0x1532i32;
+    let number = CFNumberCreate(std::ptr::null_mut(), kCFNumberSInt32Type, &value as *const _ as *const c_void);
+    CFDictionarySetValue(matching, key as *const _, number as *const _);
+    matching
+}
+
+fn main() {
+    unsafe {
+        let matching = create_razer_matching();
+        let mut iter: io_iterator_t = 0;
+
+        let result = IOServiceGetMatchingServices(kIOMasterPortDefault, matching, &mut iter);
+        if result != KERN_SUCCESS as i32 {
+            panic!("IOServiceGetMatchingServices failed: {}", result);
+        }
+
+        println!("Iterating over USB devices...");
+        loop {
+            let device = IOIteratorNext(iter);
+            if device == 0 {
+                println!("No more devices found.");
+                break;
+            }
+
+            println!("🔍 Found matching USB device: {}", device);
+
+            let mut plugin_ptr: *mut IOCFPlugInInterface = ptr::null_mut();
+            let mut plugin_ptr_ref: *mut *mut IOCFPlugInInterface = &mut plugin_ptr;
+            let plugin_ptr_ptr: *mut *mut *mut IOCFPlugInInterface = &mut plugin_ptr_ref;
+            let mut score: i32 = 0;
+
+            let result = IOCreatePlugInInterfaceForService(
+                device,
+                get_usb_device_uuid(),
+                get_plugin_uuid(),
+                plugin_ptr_ptr,
+                &mut score,
+            );
+
+            if result != KERN_SUCCESS as i32 || plugin_ptr.is_null() {
+                println!("❌ IOCreatePlugInInterfaceForService failed: {}", result);
+                IOObjectRelease(device);
+                continue;
+            }
+
+            println!("✅ Created PlugInInterface");
+
+            let plugin_interface: *mut IOCFPlugInInterface = plugin_ptr;
+
+            if plugin_interface.is_null() || (*plugin_interface).QueryInterface.is_none() {
+                println!("❌ QueryInterface is null");
+                IOObjectRelease(device);
+                continue;
+            }
+
+            let mut device_interface_ptr: *mut c_void = ptr::null_mut();
+            let hr = (*plugin_interface).QueryInterface.unwrap()(
+                plugin_interface as *mut c_void,
+                get_usb_device_uuid() as REFIID,
+                &mut device_interface_ptr,
+            );
+
+            (*plugin_interface).Release.unwrap()(plugin_interface as *mut c_void);
+            IOObjectRelease(device);
+
+            if hr != 0 {
+                println!("❌ QueryInterface failed with hr = {}", hr);
+                continue;
+            }
+
+            let device_interface = device_interface_ptr as *mut IOUSBDeviceInterface;
+
+            if device_interface.is_null() {
+                println!("❌ Got null device interface");
+                continue;
+            }
+
+            let mut vid: u16 = 0;
+            let mut pid: u16 = 0;
+
+            (*device_interface).GetDeviceVendor.unwrap()(device_interface as *mut c_void, &mut vid);
+            (*device_interface).GetDeviceProduct.unwrap()(device_interface as *mut c_void, &mut pid);
+
+            println!("✅ Razer device found: VID {:04x}, PID {:04x}", vid, pid);
+
+            // Optional: hier könnte dein `macos_usb_control_msg` folgen
+
+            (*device_interface).Release.unwrap()(device_interface as *mut c_void);
+        }
+
+        IOObjectRelease(iter);
+    }
+}
+
+ */

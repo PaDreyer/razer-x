@@ -1,0 +1,137 @@
+extern crate libc;
+use std::ptr;
+use libc::c_void;
+use bindings::*;
+
+fn main() {
+    unsafe {
+        let matching = IOServiceMatching(b"IOUSBDevice\0".as_ptr() as *const i8);
+        if matching.is_null() {
+            panic!("IOServiceMatching failed");
+        }
+
+        let mut iter: io_iterator_t = 0;
+        let result = IOServiceGetMatchingServices(kIOMasterPortDefault, matching, &mut iter);
+        if result != KERN_SUCCESS as i32 {
+            panic!("IOServiceGetMatchingServices failed: {}", result);
+        }
+
+        println!("Iterating over USB devices...");
+        loop {
+            println!("Searching for Razer devices...");
+
+            let device = IOIteratorNext(iter);
+            if device == 0 {
+                println!("No more devices found.");
+                break;
+            }
+
+            println!("Found device: {}", device);
+
+            // 1. Plugin-Zeiger korrekt vorbereiten
+            let mut plugin_ptr: *mut IOCFPlugInInterface = std::ptr::null_mut();
+            let mut plugin_ptr_ptr: *mut *mut IOCFPlugInInterface = &mut plugin_ptr;
+            let plugin_ptr_ptr_ptr: *mut *mut *mut IOCFPlugInInterface = &mut plugin_ptr_ptr;
+
+            let mut score: i32 = 0;
+
+            // 2. Aufruf mit korrekt gecastetem void***
+            let result = IOCreatePlugInInterfaceForService(
+                device,
+                get_usb_device_uuid(),
+                get_plugin_uuid(),
+                plugin_ptr_ptr_ptr,
+                &mut score,
+            );
+            if result != KERN_SUCCESS as i32 || plugin_ptr.is_null() {
+                println!("Failed to create plugin interface.");
+                IOObjectRelease(device);
+                continue;
+            }
+
+            // 3. Plugin Interface korrekt verwenden
+            let plugin_interface: *mut IOCFPlugInInterface = plugin_ptr;
+
+            if plugin_interface.is_null() || (*plugin_interface).QueryInterface.is_none() {
+                println!("❌ QueryInterface is null");
+                IOObjectRelease(device);
+                continue;
+            }
+
+            println!("✅ QueryInterface is not null");
+
+            let mut raw_device_interface: *mut std::ffi::c_void = std::ptr::null_mut();
+            let reffiid = get_usb_device_uuid() as REFIID;
+            let query_fn = (*plugin_interface).QueryInterface;
+
+            println!("plugin_interface address: {:p}", plugin_interface);
+            println!("QueryInterface address: {:?}", query_fn.unwrap() as *const ());
+            println!("reffiid ptr: {:p}", reffiid);
+            println!("Calling QueryInterface...");
+            let hr = query_fn.unwrap()(
+                plugin_interface as *mut c_void,
+                reffiid,
+                &mut raw_device_interface as *mut *mut c_void,
+            );
+            println!("Returned from QueryInterface with hr = {}", hr);
+
+            // Cast zu IOUSBDeviceInterface
+            let device_interface = raw_device_interface as *mut IOUSBDeviceInterface;
+
+            println!("QueryInterface result: {}", hr);
+
+            if !(*plugin_interface).Release.is_none() {
+                (*plugin_interface).Release.unwrap()(plugin_interface as *mut _);
+            }
+
+            IOObjectRelease(device);
+
+            if hr != 0 || device_interface.is_null() {
+                println!("Failed to query device interface.");
+                continue;
+            }
+
+            let mut vid: u16 = 0;
+            let mut pid: u16 = 0;
+
+            (*device_interface).GetDeviceVendor.unwrap()(device_interface as *mut _, &mut vid);
+            (*device_interface).GetDeviceProduct.unwrap()(device_interface as *mut _, &mut pid);
+
+            if vid == 0x1532 {
+                println!("✅ Found Razer device with PID {:04x}", pid);
+            } else {
+                println!("❌ Found non-Razer device with PID {:04x}", pid);
+            }
+
+            (*device_interface).Release.unwrap()(device_interface as *mut _);
+        }
+
+        IOObjectRelease(iter);
+    }
+}
+
+
+
+
+
+extern crate libc;
+use std::ptr;
+use libc::c_void;
+use core_foundation::uuid::{CFUUID, CFUUIDBytes, CFUUIDRef};
+use core_foundation::string::CFString;
+use core_foundation_sys::dictionary::CFDictionarySetValue;
+use core_foundation_sys::number::{kCFNumberSInt32Type, CFNumberCreate};
+use bindings::*;
+
+unsafe fn create_razer_matching() -> CFMutableDictionaryRef {
+    let matching = IOServiceMatching(b"IOUSBDevice\0".as_ptr() as *const i8);
+    if matching.is_null() {
+        panic!("IOServiceMatching failed");
+    }
+
+    let key = CFString::new("idVendor").as_concrete_TypeRef();
+    let value = 0x1532i32;
+    let number = CFNumberCreate(std::ptr::null_mut(), kCFNumberSInt32Type, &value as *const _ as *const c_void);
+    CFDictionarySetValue(matching, key as *const _, number as *const _);
+    matching
+}
