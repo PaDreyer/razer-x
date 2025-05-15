@@ -30,20 +30,21 @@ fn main() {
                 .allowlist_type("IO.*")
                 .allowlist_function("kIOCFPlugInInterfaceID")
                 .allowlist_function("kIOUSBInterfaceUserClientTypeID")
-                .allowlist_function("kIOUSBFindInterfaceDontCare")
+                .allowlist_function("get_usb_device_uuid")
+                .allowlist_function("get_plugin_uuid")
+                //.allowlist_function("kIOUSBFindInterfaceDontCare")
                 .allowlist_var("kIOMasterPortDefault")
                 .allowlist_var("KERN_SUCCESS")
                 .parse_callbacks(Box::new(bindgen::CargoCallbacks));
 
             // C-Datei kompilieren, falls vorhanden
-            /*
+
             cc::Build::new()
                 .file(&c_file.to_string())
                 .flag(&format!("-isysroot{}", &sdk_path.to_string()))
                 .flag("-I/System/Library/Frameworks/IOKit.framework/Headers")
                 .flag("-I/System/Library/Frameworks/CoreFoundation.framework/Headers")
                 .compile("usb_driver_macos");
-             */
 
             (header_path, builder, Some((c_file.to_string(), sdk_path.to_string())))
         }

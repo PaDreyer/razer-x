@@ -6,8 +6,8 @@
 #include <IOKit/IOKitLib.h>
 //#include <CoreFoundation/CoreFoundation.h>
 
-//CFUUIDRef get_usb_device_uuid(void);
-//CFUUIDRef get_plugin_uuid(void);
+CFUUIDRef get_usb_device_uuid(void);
+CFUUIDRef get_plugin_uuid(void);
 
 int macos_usb_send_control(IOUSBDeviceInterface **device,
                            uint8_t request_type,
