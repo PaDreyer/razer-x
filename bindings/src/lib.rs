@@ -19,4 +19,11 @@ use core_foundation::uuid::CFUUIDBytes;
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[allow(non_camel_case_types)]
-pub type REFIID = CFUUIDRef;
+pub type REFIID = CFUUIDBytes;
+//pub type REFIID = CFUUIDRef;
+
+unsafe extern "C" {
+    pub static kIOUSBDeviceUserClientTypeID: CFUUIDRef;
+    pub static kIOCFPlugInInterfaceID: CFUUIDRef;
+    pub static kIOUSBDeviceInterfaceID: CFUUIDRef;
+}
