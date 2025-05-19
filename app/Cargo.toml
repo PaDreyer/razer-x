@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-#driver = { path = "../driver" }
+driver = { path = "../driver" }
 libc = "0.2"
 bindings = { path = "../bindings" }
 hidapi = { version = "2.6.3" }
