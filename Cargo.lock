@@ -25,6 +25,7 @@ dependencies = [
  "bindings",
  "core-foundation",
  "core-foundation-sys",
+ "driver",
  "hidapi",
  "libc",
  "thiserror",
@@ -120,6 +121,10 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 [[package]]
 name = "driver"
 version = "0.1.0"
+dependencies = [
+ "bindings",
+ "log",
+]
 
 [[package]]
 name = "either"
