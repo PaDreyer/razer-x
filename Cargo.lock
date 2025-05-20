@@ -28,6 +28,7 @@ dependencies = [
  "driver",
  "hidapi",
  "libc",
+ "razer",
  "thiserror",
 ]
 
@@ -237,6 +238,10 @@ checksum = "1885c039570dc00dcb4ff087a89e185fd56bae234ddc7f056a945bf36467248d"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "razer"
+version = "0.1.0"
 
 [[package]]
 name = "regex"
