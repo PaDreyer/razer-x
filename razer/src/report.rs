@@ -79,7 +79,7 @@ pub struct RazerReport {
 }
 
 impl RazerReport {
-    unsafe fn from_bytes(bytes: &[u8]) -> Self {
+    pub unsafe fn from_bytes(bytes: &[u8]) -> Self {
         if bytes.len() != RAZER_USB_REPORT_LEN as usize {
             panic!("Invalid length: expected {} bytes, got {}", RAZER_USB_REPORT_LEN, bytes.len());
         }
@@ -170,8 +170,36 @@ impl RazerReport {
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L1630
-    pub fn set_poll_rate_report() -> Self {
-        unimplemented!()
+    /**
+    * Set the polling rate for the device
+    *
+    * Identifier is in arg[0]
+    *
+    * 1000 = 0x01
+    * 500  = 0x02 (50Hz)
+    * 125  = 0x08
+    */
+    pub fn set_poll_rate_report(polling_rate: u16) -> Self {
+        let mut arguments = [0u8; 80];
+        arguments[0] = match polling_rate {
+            1000 => 0x01,
+            500 => 0x02,
+            125 => 0x08,
+            _ => panic!("Invalid polling rate. Must be 1000, 500 or 125"),
+        };
+
+        Self {
+            status: 0x00,
+            transaction_id: TransactionId(0x1f),
+            remaining_packets: 0x00,
+            protocol_type: 0x00,
+            data_size: 0x01,
+            command_class: 0x00,
+            command_id: CommandId(0x05),
+            arguments,
+            crc: 0x00,
+            reserved: 0x00,
+        }
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2055
@@ -195,8 +223,32 @@ impl RazerReport {
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L1873
-    pub fn set_dpi_xy_report() -> Self {
-        unimplemented!()
+    pub fn set_dpi_xy_report(dpi_x: u16, dpi_y: u16) -> Self {
+        // verify that dpi_x and dpi_y are in the range of 100-35000
+        assert!(dpi_x >= 100 && dpi_x <= 35000, "dpi_x doesn't fit between 100 and 35000");
+        assert!(dpi_y >= 100 && dpi_y <= 35000, "dpi_y doesn't fit between 100 and 35000");
+
+        let mut arguments = [0u8; 80];
+        arguments[0] = 0x01; // VARSTORE
+        arguments[1] = ((dpi_x >> 8) & 0x00FF) as u8;
+        arguments[2] = (dpi_x & 0x00FF) as u8;
+        arguments[3] = ((dpi_y >> 8) & 0x00FF) as u8;
+        arguments[4] = (dpi_y & 0x00FF) as u8;
+        arguments[5] = 0x00;
+        arguments[6] = 0x00;
+
+        Self {
+            status: 0x00,
+            transaction_id: TransactionId(0x1f),
+            remaining_packets: 0x00,
+            protocol_type: 0x00,
+            data_size: 0x07,
+            command_class: 0x04,
+            command_id: CommandId(0x05),
+            arguments,
+            crc: 0x00,
+            reserved: 0x00,
+        }
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L1331
@@ -261,8 +313,25 @@ impl RazerReport {
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L1756
-    fn set_matrix_brightness_report() -> Self {
-        unimplemented!()
+    pub fn set_matrix_brightness_report(brightness: u8) -> Self {
+        let mut arguments = [0u8; 80];
+        
+        arguments[0] = 0x01; // VARSTORE
+        arguments[1] = 0x00; // ZERO_LED
+        arguments[2] = brightness;;
+        
+        Self {
+            status: 0x00,
+            transaction_id: TransactionId(0x1f),
+            remaining_packets: 0x00,
+            protocol_type: 0x00,
+            data_size: 0x03,
+            command_class: 0x0F,
+            command_id: CommandId(0x04),
+            arguments,
+            crc: 0x00,
+            reserved: 0x00,
+        }
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L3212
