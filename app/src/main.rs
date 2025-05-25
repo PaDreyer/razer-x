@@ -1,353 +1,137 @@
-mod ior_error;
-mod razer;
+#![allow(unused)]
+use std::{thread, time::Duration};
+use std::sync::{Arc, Mutex};
+use razer::{RazerReport, BACKLIGHT_LED, LOGO_LED, RAZER_BASILISK_V3_PRO_ID, RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US, RAZER_USB_VENDOR_ID};
+use driver::{UsbDriver};
+use gui::Gui;
 
-use ior_error::{init_ior_errors, log_ior_error};
+use clap::{Parser, Subcommand};
 
-use std::{ffi::CStr, ptr, thread, time::Duration};
-use std::os::raw::c_void;
-use core_foundation::base::TCFType;
-use core_foundation::string::CFString;
-use core_foundation_sys::{
-    base::kCFAllocatorDefault,
-    number::{CFNumberGetValue, kCFNumberSInt32Type},
-    string::{CFStringGetCString, kCFStringEncodingUTF8},
-    uuid::{CFUUIDBytes, CFUUIDCreateFromUUIDBytes, CFUUIDRef}
-};
-use core_foundation_sys::uuid::CFUUIDGetUUIDBytes;
-use libc::{c_char};
-use bindings::{get_usb_device_interface_uuid, get_usb_device_uuid, get_plugin_uuid, io_registry_entry_t, io_iterator_t, IOIteratorNext, IOObjectRelease, IORegistryEntryCreateCFProperty, IOUSBDevRequest, IOUSBDeviceInterface, IOCFPlugInInterface, kIOMasterPortDefault, io_service_t, IOCreatePlugInInterfaceForService, IOServiceMatching, io_object_t, IOServiceGetMatchingServices, REFIID, IOReturn};
-use crate::ior_error::kIOReturnSuccess;
-use crate::razer::{RazerReport, RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US, RAZER_NEW_MOUSE_RECEIVER_WAIT_MIN_US};
-
-use driver::UsbDriver;
-
-
-#[derive(Debug)]
-pub struct UsbRegistryEntry {
-    pub name: Option<String>,
-    pub class: Option<String>,
-    pub interface_number: Option<u32>,
-    pub entry_id: Option<u32>,
-    pub io_service: io_service_t,
-    pub children: Vec<UsbRegistryEntry>,
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[command(subcommand)]
+    service: Option<Service>,
 }
 
-unsafe fn get_string_property(entry: io_registry_entry_t, key: &str) -> Option<String> {
-    let cf_key = CFString::new(key);
-    let raw = IORegistryEntryCreateCFProperty(
-        entry,
-        cf_key.as_concrete_TypeRef(),
-        ptr::null_mut(),
-        0,
-    );
-    if raw.is_null() {
-        return None;
-    }
-
-    let mut buf = [0 as c_char; 256];
-    let success = CFStringGetCString(
-        raw as _,
-        buf.as_mut_ptr(),
-        buf.len() as isize,
-        kCFStringEncodingUTF8,
-    );
-    if success == 0 {
-        return None;
-    }
-
-    Some(CStr::from_ptr(buf.as_ptr()).to_string_lossy().into_owned())
+#[derive(Subcommand, Debug, Clone)]
+enum Service {
+    Install,
+    Uninstall,
 }
 
-unsafe fn get_int_property(entry: io_registry_entry_t, key: &str) -> Option<u32> {
-    let cf_key = CFString::new(key);
-    let raw = IORegistryEntryCreateCFProperty(
-        entry,
-        cf_key.as_concrete_TypeRef(),
-        ptr::null_mut(),
-        0,
-    );
-    if raw.is_null() {
-        return None;
-    }
+unsafe fn get_data_for_razer_report(usb_handle: &mut driver::PlatformUsbDriver, index: u16, razer_report: &mut RazerReport) -> Result<Vec<u8>, String> {
+    razer_report.finalize();
+    let get_firmware_report_data = razer_report.to_hid_bytes();
 
-    let mut val: i32 = 0;
-    let success = CFNumberGetValue(raw as _, kCFNumberSInt32Type, &mut val as *mut _ as *mut _);
-    if success != false {
-        Some(val as u32)
-    } else {
-        None
-    }
+    usb_handle.get_feature_report(
+        get_firmware_report_data.as_slice(),
+        index,
+        Duration::from_micros(RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US as u64),
+        90
+    )
 }
 
-unsafe fn uuid_from_bytes(bytes: CFUUIDBytes) -> CFUUIDRef {
-    CFUUIDCreateFromUUIDBytes(kCFAllocatorDefault, bytes)
-}
+fn main() -> ! {
+    unsafe {
+        let args = Args::parse();
+        println!("Parsed arguments: {:?}", args);
+        
+        let usb_devices = driver::PlatformUsbDriver::list_devices();
 
-pub unsafe fn send_feature_report(
-    iface: *mut *mut IOUSBDeviceInterface,
-    data: &[u8],
-    report_index: u16,
-    wait_min_us: u64,
-    wait_max_us: u64,
-) -> Result<(), String> {
-    if iface.is_null() {
-        return Err("Interface pointer is null".into());
-    }
+        let razer_device = usb_devices.iter().find(| dev| {
+            dev.product_id == RAZER_BASILISK_V3_PRO_ID as u32 && dev.vendor_id == RAZER_USB_VENDOR_ID as u32
+        });
 
-    // Request-Parameter setzen
-    let mut buffer = data.to_vec(); // kopieren
-    let mut req = IOUSBDevRequest {
-        bmRequestType: 0x21, // USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT
-        bRequest: 0x09,      // HID_REQ_SET_REPORT
-        wValue: 0x0300,      // (HID_REPORT_TYPE_FEATURE << 8) | 0x00
-        wIndex: report_index,
-        wLength: buffer.len() as u16,
-        pData: buffer.as_mut_ptr() as *mut c_void,
-        wLenDone: 0,
-    };
-
-    // Aufruf: DeviceRequest
-    let device_request_fn = (**iface).DeviceRequest.ok_or("DeviceRequest function is null")?;
-    let status = device_request_fn(iface as *mut c_void, &mut req);
-
-    // Sleep wie bei usleep_range
-    let sleep_us = wait_min_us.max(wait_max_us); // oder zufällig innerhalb
-    thread::sleep(Duration::from_micros(sleep_us));
-
-    if status != 0 {
-        return Err(format!("DeviceRequest failed with status: {:#x}", status));
-    }
-
-    if req.wLenDone != buffer.len() as u32 {
-        return Err("Incomplete transfer".into());
-    }
-
-    Ok(())
-}
-
-pub unsafe fn get_feature_report(
-    iface: *mut *mut IOUSBDeviceInterface,
-    report_index: u16,
-    buffer: *mut u8,
-) -> Result<usize, String> {
-    if iface.is_null() {
-        return Err("Interface pointer is null".into());
-    }
-
-    let mut req = IOUSBDevRequest {
-        bmRequestType: 0xA1, // USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN
-        bRequest: 0x01,      // HID_REQ_GET_REPORT
-        wValue: 0x0300,      // (Feature Report << 8) | Report ID (0x00)
-        wIndex: report_index,
-        wLength: 90,
-        pData: buffer as *mut c_void,
-        wLenDone: 0,
-    };
-
-    let device_request_fn = (**iface).DeviceRequest.ok_or("DeviceRequest function is null")?;
-    let status = device_request_fn(iface as *mut c_void, &mut req);
-
-    if status != 0 {
-        return Err(format!("DeviceRequest (GET) failed with status: {:#x}", status));
-    }
-
-    if req.wLenDone == 0 {
-        return Err("No data received".into());
-    }
-
-    Ok(req.wLenDone as usize)
-}
-
-pub unsafe fn is_razer_device(usb_device: io_object_t) -> bool {
-    let usb_device_vendor_id = get_int_property(usb_device, "idVendor");
-    usb_device_vendor_id == Some(crate::razer::USB_VENDOR_ID_RAZER as u32)
-}
-
-
-pub unsafe fn get_razer_usb_device_interface2() -> *mut *mut IOUSBDeviceInterface {
-    let matching_dict = IOServiceMatching(b"IOUSBDevice\0".as_ptr() as *const i8);
-    if matching_dict.is_null() {
-        return ptr::null_mut();
-    }
-
-    let mut iter: io_iterator_t = 0;
-    println!("kIoMasterPortDefault: {:?}", kIOMasterPortDefault);
-    println!("UsbDevice UUID: {:}", get_usb_device_uuid() as u32);
-    println!("Plugin UUID: {:}", get_plugin_uuid() as u32);
-    println!("UsbDeviceInterface UUID: {:}", get_usb_device_interface_uuid() as u32);
-    let result = IOServiceGetMatchingServices(kIOMasterPortDefault, matching_dict, &mut iter);
-    if result != kIOReturnSuccess {
-        return ptr::null_mut();
-    }
-
-    println!("Iterating over USB devices...");
-    loop {
-
-        let usb_device = IOIteratorNext(iter);
-
-        if usb_device == 0 {
-            println!("No more devices found.");
-            break;
-        }
-
-        let usb_device_name = get_string_property(usb_device, "USB Product Name").unwrap();
-        println!("Found USB device: {}", usb_device_name);
-
-        let mut plugin_interface: *mut IOCFPlugInInterface = ptr::null_mut();
-        let mut plugin_interface_ptr: *mut *mut IOCFPlugInInterface = &mut plugin_interface;
-        let mut score: i32 = 0;
-
-        let kr = IOCreatePlugInInterfaceForService(
-            usb_device,
-            get_usb_device_uuid(),
-            get_plugin_uuid(),
-            &mut plugin_interface_ptr,
-            &mut score,
-        );
-
-        IOObjectRelease(usb_device);
-
-        if kr != kIOReturnSuccess || (plugin_interface_ptr as i32) == 0x0 {
-            println!("IOCreatePlugInInterfaceForService failed");
-            continue;
+        if let Some(device) = razer_device {
+            println!("Found Razer device: {:?}", device);
         } else {
-            println!("IOCreatePlugInInterfaceForService succeeded");
+            panic!("No Razer device found");
         }
 
+        let get_battery_status = || {
+            let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
+            let mut get_battery_report = RazerReport::get_battery_level_report();
+            let battery_status = match get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_battery_report) {
+                Ok(data) => {
+                    let report = RazerReport::from_bytes(data.as_slice());
+                    report.arguments[1]
+                },
+                Err(e) => {
+                    eprintln!("Error getting battery status: {}", e);
+                    0
+                }
+            };
+            drop(usb_handle);
+            battery_status
+        };
 
-        let mut iface_ptr: *mut IOUSBDeviceInterface = ptr::null_mut();
-        let mut iface_ptr_ptr: *mut *mut IOUSBDeviceInterface = &mut iface_ptr;
-        let mut iface_ptr_ptr_ptr: *mut *mut *mut IOUSBDeviceInterface = &mut iface_ptr_ptr;
+        let get_polling_rate = || {
+            let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
+            let mut get_poll_rate_report = RazerReport::get_poll_rate_report();
+            let poll_rate = match get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_poll_rate_report) {
+                Ok(data) => {
+                    let report = RazerReport::from_bytes(data.as_slice());
+                    match report.arguments[0] {
+                        0x01 => 1000,
+                        0x02 => 500,
+                        0x08 => 125,
+                        _ => {
+                            eprintln!("Unknown polling rate: {}", report.arguments[0]);
+                            0
+                        }
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Error getting polling rate: {}", e);
+                    0
+                }
+            };
 
-        println!("Creating query interface...");
-        println!("Plugin pointer: {:?}", *plugin_interface_ptr);
-        println!("Plugin interface: {:?}", plugin_interface);
-        println!("iface_ptr_ptr as *mut *mut c_void: {:?}", iface_ptr_ptr as *mut *mut c_void);
-        println!("iface_ptr: {:?}", iface_ptr);
+            drop(usb_handle);
+            poll_rate
+        };
 
-        let uuid = get_usb_device_uuid();
-
-        let hresult = (**plugin_interface_ptr).QueryInterface.unwrap()(
-            plugin_interface_ptr as *mut c_void,
-            CFUUIDGetUUIDBytes(get_usb_device_interface_uuid()),
-            iface_ptr_ptr_ptr as *mut *mut c_void,
-        );
-
-        println!("QueryInterface result: {:#x}", hresult);
-        (**plugin_interface_ptr).Release.unwrap()(plugin_interface_ptr as *mut c_void);
-
-        println!("Release result: {:#x}", hresult);
-        if hresult != 0 || iface_ptr_ptr.is_null() {
-            println!("QueryInterface failed");
-            continue;
-        }
-        println!("MKAY");
-
-        if !is_razer_device(usb_device) {
-            println!("Not a Razer device");
-            println!("Device interface pointer: {:?}", **iface_ptr_ptr);
-            println!("Release fn: {:?}", (**iface_ptr_ptr).Release.unwrap());
-            (**iface_ptr_ptr).Release.unwrap()(iface_ptr_ptr as *mut c_void);
-            println!("Released device interface");
-            continue;
-        }
-
-        println!("Device is Razer");
-
-
-        println!("Opening USB device...");
-        println!("Device interface pointer: {:?}", **iface_ptr_ptr);
-        println!("USBDeviceOpen fn: {:?}", (**iface_ptr_ptr).USBDeviceOpen);
-
-        if (**iface_ptr_ptr).USBDeviceOpen.is_none() {
-            println!("USBDeviceOpen function pointer is null");
-            (**iface_ptr_ptr).Release.unwrap()(iface_ptr_ptr as *mut c_void);
-            continue;
-        }
-
-        let open_result = (**iface_ptr_ptr).USBDeviceOpen.unwrap()(iface_ptr_ptr as *mut c_void);
-        println!("USBDeviceOpen result: {:#x}", open_result);
-
-        if open_result != kIOReturnSuccess {
-            println!("Unable to open USB device: {:08x}", open_result);
-            (**iface_ptr_ptr).Release.unwrap()(iface_ptr_ptr as *mut c_void);
-            continue;
-        }
-
-        IOObjectRelease(iter);
-        return iface_ptr_ptr;
-    }
-
-    IOObjectRelease(iter);
-    ptr::null_mut()
-}
-
-pub unsafe fn send_control_msg(iface: *mut *mut IOUSBDeviceInterface, report: RazerReport) -> IOReturn {
-    let index: u16 = 0x00;
-    let report_length: u16 = 90;
-    let request: Box<IOUSBDevRequest> = Box::new(IOUSBDevRequest {
-        bmRequestType: 0x20 | 0x01 | 0x00,
-        bRequest: 0x09,
-        wValue: 0x300,
-        wIndex: index,
-        wLength: report_length,
-        pData: ptr::addr_of!(report) as *mut c_void,
-        wLenDone: 0,
-    });
-
-    let request_ptr = Box::into_raw(request);
-
-    (**iface).DeviceRequest.unwrap()(iface as *mut c_void, request_ptr)
-}
-
-fn main() -> anyhow::Result<()> {
-    unsafe {
-        let platform_driver = driver::PlatformUsbDriver::list_devices();
-        for device in platform_driver {
-            println!("Found device: {:?}", device);
-        }
-        
-        Ok(())
-        
-    }
-    /*
-    init_ior_errors();
-    unsafe {
-        let device = get_razer_usb_device_interface2();
-        if device.is_null() {
-            println!("No Razer USB device found");
-            return Ok(());
-        }
-
-        let mut report = RazerReport::get_firmware_report();
-        report.finalize();
-
-        let mut data = report.to_hid_bytes();
-
-        match send_control_msg(device, report) {
-            kIOReturnSuccess => println!("Control message sent successfully"),
-            err => {
-                println!("Error sending control message: {:#x}", err);
-                return Err(anyhow::anyhow!("Error sending control message: {:#x}", err));
+        let set_backlight = |brightness: u8| {
+            let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
+            let mut set_brightness_report = RazerReport::set_matrix_brightness_report(brightness);
+            match get_data_for_razer_report(&mut usb_handle, 0x00, &mut set_brightness_report) {
+                Ok(_) => println!("Backlight set to {}%", brightness),
+                Err(e) => eprintln!("Error setting backlight: {}", e),
             }
-        }
+            drop(usb_handle);
+        };
 
-        thread::sleep(Duration::from_micros(RAZER_NEW_MOUSE_RECEIVER_WAIT_MIN_US.max(RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US) as u64));
+        let set_polling_rate = |rate: u16| {
+            let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
+            let mut set_poll_rate_report = RazerReport::set_poll_rate_report(rate);
+            match get_data_for_razer_report(&mut usb_handle, 0x00, &mut set_poll_rate_report) {
+                Ok(_) => println!("Polling rate set to {}Hz", rate),
+                Err(e) => eprintln!("Error setting polling rate: {}", e),
+            }
+            drop(usb_handle);
+        };
 
-        let mut buffer = [0u8; 90];
-        let ptr: *mut u8 = buffer.as_mut_ptr();
+        let get_dpi_xy = || {
+            let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
+            let mut get_dpi_report = RazerReport::get_dpi_xy_report();
+            match get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_dpi_report) {
+                Ok(data) => {
+                    let report = RazerReport::from_bytes(data.as_slice());
+                    let dpi_x = ((report.arguments[1] as u16) << 8) | (report.arguments[2] as u16 & 0xFF);
+                    let dpi_y = ((report.arguments[3] as u16) << 8) | (report.arguments[4] as u16 & 0xFF);
+                    
+                    (dpi_x, dpi_y)
+                },
+                Err(e) => {
+                    eprintln!("Error getting DPI: {}", e);
+                    (0, 0)
+                }
+            }
+        };
 
-        let feature_report_result = get_feature_report(device, 0, ptr);
+        let mut gui = Gui::new(get_battery_status, set_backlight, set_polling_rate, get_polling_rate, get_dpi_xy);
 
-        if let Err(e) = feature_report_result {
-            println!("Error sending feature report: {}", e);
-        } else {
-            println!("Feature report sent successfully");
-            println!("Request: {:?}", data);
-            println!("Data: {:?}", buffer);
-        }
-
+        gui.run();
     }
-    Ok(())
-     */
 }

@@ -7,10 +7,6 @@ impl UsbDriver for LinuxUsbDriver {
         unimplemented!("Linux support not yet implemented");
     }
 
-    fn send_feature_report(&self, _data: &[u8]) -> Result<(), String> {
-        unimplemented!("Linux support not yet implemented");
-    }
-
     fn read_feature_report(&self, _buf: &mut [u8]) -> Result<usize, String> {
         unimplemented!("Linux support not yet implemented");
     }

@@ -55,8 +55,8 @@ unsafe fn get_int_property(entry: io_registry_entry_t, key: &str) -> Option<u32>
 
 
 pub struct MacOsUsbDriver {
-    vendor_id: String,
-    product_id: String,
+    vendor_id: u16,
+    product_id: u16,
     device: *mut *mut IOUSBDeviceInterface,
 }
 
@@ -69,7 +69,7 @@ impl Drop for MacOsUsbDriver {
 }
 
 impl UsbDriver for MacOsUsbDriver {
-    unsafe fn new(vendor_id: &str, product_id: &str) -> Self {
+    unsafe fn new(vendor_id: u16, product_id: u16) -> Self {
         let matching_dict = IOServiceMatching(b"IOUSBDevice\0".as_ptr() as *const i8);
         if matching_dict.is_null() {
             panic!("IOServiceMatching failed");
@@ -88,13 +88,21 @@ impl UsbDriver for MacOsUsbDriver {
             if usb_device == 0 {
                 println!("No more devices found.");
                 device = None;
+                break;
             }
 
-            let usb_device_name = get_string_property(usb_device, "USB Product Name").unwrap();
-            println!("Found USB device: {}", usb_device_name);
-
-            let vendor_id = get_string_property(usb_device, "idVendor").unwrap();
-            println!("Vendor ID: {}", vendor_id);
+            let device_vendor_id = get_int_property(usb_device, "idVendor").unwrap();
+            let device_product_id = get_int_property(usb_device, "idProduct").unwrap();
+            
+            if device_vendor_id != vendor_id as u32 {
+                IOObjectRelease(usb_device);
+                continue;
+            }
+            
+            if device_product_id != product_id as u32 {
+                IOObjectRelease(usb_device);
+                continue;
+            }
 
             let mut plugin_interface: *mut IOCFPlugInInterface = ptr::null_mut();
             let mut plugin_interface_ptr: *mut *mut IOCFPlugInInterface = &mut plugin_interface;
@@ -113,10 +121,7 @@ impl UsbDriver for MacOsUsbDriver {
             if kr != kIOReturnSuccess || (plugin_interface_ptr as i32) == 0x0 {
                 println!("IOCreatePlugInInterfaceForService failed");
                 continue;
-            } else {
-                println!("IOCreatePlugInInterfaceForService succeeded");
             }
-
 
             let mut iface_ptr: *mut IOUSBDeviceInterface = ptr::null_mut();
             let mut iface_ptr_ptr: *mut *mut IOUSBDeviceInterface = &mut iface_ptr;
@@ -142,7 +147,6 @@ impl UsbDriver for MacOsUsbDriver {
             }
 
             let open_result = (**iface_ptr_ptr).USBDeviceOpen.unwrap()(iface_ptr_ptr as *mut c_void);
-            println!("USBDeviceOpen result: {:#x}", open_result);
 
             if open_result != kIOReturnSuccess {
                 println!("Unable to open USB device: {:08x}", open_result);
@@ -156,12 +160,12 @@ impl UsbDriver for MacOsUsbDriver {
         }
 
         if device.is_none() {
-            panic!("No device found");
+            panic!("Device not found");
         }
 
         Self {
-            vendor_id: String::from(vendor_id),
-            product_id: String::from(product_id),
+            vendor_id,
+            product_id,
             device: device.unwrap(),
         }
     }
@@ -184,18 +188,12 @@ impl UsbDriver for MacOsUsbDriver {
             let usb_device = IOIteratorNext(iter);
 
             if usb_device == 0 {
-                println!("No more devices found.");
                 break;
             }
 
             let usb_device_name = get_string_property(usb_device, "USB Product Name").unwrap();
-            println!("Found USB device: {}", usb_device_name);
-
             let vendor_id = get_int_property(usb_device, "idVendor").unwrap();
-            println!("Vendor ID: {}", vendor_id);
-
             let product_id = get_int_property(usb_device, "idProduct").unwrap();
-            println!("Product ID: {}", product_id);
 
             devices.push(Device {
                 name: usb_device_name,
@@ -248,6 +246,12 @@ impl UsbDriver for MacOsUsbDriver {
             return Err("Device is null".to_string());
         }
 
+        if let Err(e) = self.send_control_msg(0x09, 0x300, index, data, min_wait) {
+            return Err(format!("Failed to send feature report: {}", e));
+        }
+        
+        thread::sleep(min_wait);
+
         let mut buffer: Vec<u8> = vec![0; response_length as usize];
         let mut req = IOUSBDevRequest {
             bmRequestType: 0xA1, // USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN
@@ -274,43 +278,7 @@ impl UsbDriver for MacOsUsbDriver {
 
         Ok(buffer)
     }
-
-    unsafe fn send_feature_report(&mut self, data: &[u8], index: u16, min_wait: Duration, response_length: u16) -> Result<Vec<u8>, String> {
-        if self.device.is_null() {
-            return Err("Device is null".to_string());
-        }
-
-        if let Err(e) = self.send_control_msg(0x09, 0x300, index, data, min_wait) {
-            return Err(format!("Failed to send feature report: {}", e));
-        }
-
-        let mut buffer: Vec<u8> = vec![0; response_length as usize];
-        let mut req = IOUSBDevRequest {
-            bmRequestType: 0x21, // USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT
-            bRequest: 0x09,      // HID_REQ_SET_REPORT
-            wValue: 0x0300,      // (HID_REPORT_TYPE_FEATURE << 8) | 0x00
-            wIndex: index,       //
-            wLength: buffer.len() as u16,
-            pData: buffer.as_mut_ptr() as *mut c_void,
-            wLenDone: 0,
-        };
-
-        let device_request_fn = (**self.device).DeviceRequest.ok_or("DeviceRequest function is null")?;
-        let status = device_request_fn(self.device as *mut c_void, &mut req);
-
-        thread::sleep(min_wait);
-
-        if status != 0 {
-            return Err(format!("DeviceRequest failed with status: {:#x}", status));
-        }
-
-        if req.wLenDone != buffer.len() as u32 {
-            return Err("Incomplete transfer".into());
-        }
-
-        Ok(buffer)
-    }
-
+    
     unsafe fn close(&mut self) -> Result<(), String> {
         if self.device.is_null() {
             return Err("Device is null".to_string());
