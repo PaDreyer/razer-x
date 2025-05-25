@@ -18,7 +18,10 @@ mod platform {
     use core_foundation::string::CFStringRef;
     use core_foundation_sys::base::CFTypeRef;
     use core_foundation_sys::base::CFAllocatorRef;
-    use core_foundation_sys::runloop::CFRunLoopSourceRef;
+    pub use core_foundation_sys::runloop::{
+        CFRunLoopSourceRef,
+        CFRunLoopRef,
+    };
     use core_foundation_sys::dictionary::{
         CFDictionaryRef,
         CFMutableDictionaryRef

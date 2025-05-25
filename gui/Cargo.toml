@@ -1,0 +1,10 @@
+[package]
+name = "gui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bindings = { path = "../bindings" }
+tray-icon = { version = "0.20.1" }
+tao = { version = "0.33.0" }
+image = "0.25.6"

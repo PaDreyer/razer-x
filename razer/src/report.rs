@@ -108,15 +108,17 @@ impl RazerReport {
         list[6] = self.command_class;
         list[7] = self.command_id.0;
         list[8..88].copy_from_slice(&self.arguments);
+        
         list
     }
 
     pub fn to_hid_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(90);
-        //buf.push(0x00); // Report ID als erstes Byte
+
         buf.extend_from_slice(self.raw_bytes().as_ref());
         buf.push(self.crc);
         buf.push(self.reserved);
+        
         buf
     }
 

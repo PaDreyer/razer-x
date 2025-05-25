@@ -33,7 +33,8 @@ fn main() {
                 .allowlist_function("get_usb_device_uuid")
                 .allowlist_function("get_plugin_uuid")
                 .allowlist_function("get_usb_device_interface_uuid")
-                //.allowlist_function("kIOUSBFindInterfaceDontCare")
+                .allowlist_function("CFRunLoopGetMain")
+                .allowlist_function("CFRunLoopWakeUp")
                 .allowlist_var("kIOMasterPortDefault")
                 .allowlist_var("KERN_SUCCESS")
                 .parse_callbacks(Box::new(bindgen::CargoCallbacks));
