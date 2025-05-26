@@ -51,9 +51,14 @@ fn main() {
         }
 
         t if t.contains("linux") => {
+            println!("cargo:rustc-link-lib=usb-1.0");
+            println!("cargo:rustc-link-search=native=/usr/lib");
+            
             let header_path = "native/linux/usb_driver_linux.h";
             let builder = bindgen::Builder::default()
                 .header(header_path)
+                .clang_arg("-I/usr/include")
+                .clang_arg("-I/usr/include/libusb-1.0")
                 .parse_callbacks(Box::new(bindgen::CargoCallbacks));
             (header_path, builder, None)
         }

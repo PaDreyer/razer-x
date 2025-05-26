@@ -73,7 +73,11 @@ impl Gui {
         self.run_loop.run(move |event, exit| {
             match event {
                 Event::NewEvents(tao::event::StartCause::Init) => {
+                    #[cfg(target_os = "macos")]
                     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/img_1.png");
+                    
+                    #[cfg(target_os = "linux")]
+                    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/img.png");
                     
                     if let Err(e) = self.tray.load_icon(Path::new(path)) {
                         eprintln!("Failed to load icon: {}", e);
@@ -91,7 +95,9 @@ impl Gui {
                     let (dpi_x, dpi_y) = (self.get_dpi_xy)();
                     self.tray.set_dpi_xy(dpi_x, dpi_y).unwrap();
                 }
-                Event::UserEvent(UnifiedEvent::User(UserEvent::TrayIconEvent(event))) => {}
+                Event::UserEvent(UnifiedEvent::User(UserEvent::TrayIconEvent(event))) => {
+                    println!("Tray icon: {:?}", event);
+                }
                 Event::UserEvent(UnifiedEvent::User(UserEvent::MenuEvent(event))) => {
                     let menu_id = event.id.clone();
 

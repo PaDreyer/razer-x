@@ -43,6 +43,7 @@ pub type EventHandler<T> = Box<dyn Fn(T) -> Result<(), String> + Send + Sync + '
 impl Tray {
     pub fn new(tray_sender: EventHandler<UserEvent>, menu_sender: EventHandler<UserEvent>) -> Self {
         TrayIconEvent::set_event_handler(Some(move |event| {
+            println!("Tray icon: {:?}", event);
             if let Err(e) = tray_sender(UserEvent::TrayIconEvent(event)) {
                 eprintln!("Failed to send tray icon event: {}", e);
             }
