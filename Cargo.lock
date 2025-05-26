@@ -87,6 +87,7 @@ dependencies = [
  "driver",
  "gui",
  "razer",
+ "service-installer",
 ]
 
 [[package]]

@@ -77,8 +77,6 @@ impl Gui {
                     
                     if let Err(e) = self.tray.load_icon(Path::new(path)) {
                         eprintln!("Failed to load icon: {}", e);
-                    } else {
-                        println!("Icon loaded successfully");
                     }
 
                     self.tray.init().unwrap()

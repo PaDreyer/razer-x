@@ -108,7 +108,7 @@ pub mod macos {
 
             fs::write(&path, content).map_err(|e| e.to_string())?;
             std::process::Command::new("launchctl")
-                .args(["load", &path.display().to_string()])
+                .args(["load", "-w", &path.display().to_string()])
                 .status().map_err(|e| e.to_string())?;
             Ok(())
         }
@@ -116,7 +116,7 @@ pub mod macos {
         fn uninstall(&self) -> Result<(), String> {
             let path = self.plist_path();
             std::process::Command::new("launchctl")
-                .args(["unload", &path.display().to_string()])
+                .args(["unload", "-w", &path.display().to_string()])
                 .status().map_err(|e| e.to_string())?;
             fs::remove_file(&path).ok();
             Ok(())
