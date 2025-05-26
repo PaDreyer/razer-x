@@ -38,6 +38,11 @@ fn main() -> ! {
         println!("Parsed arguments: {:?}", args);
         
         let usb_devices = driver::PlatformUsbDriver::list_devices();
+        
+        for device in &usb_devices {
+            println!("Usb device: {:?}", device);
+        }
+        
 
         let razer_device = usb_devices.iter().find(| dev| {
             dev.product_id == RAZER_BASILISK_V3_PRO_ID as u32 && dev.vendor_id == RAZER_USB_VENDOR_ID as u32
@@ -72,6 +77,7 @@ fn main() -> ! {
             let poll_rate = match get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_poll_rate_report) {
                 Ok(data) => {
                     let report = RazerReport::from_bytes(data.as_slice());
+                    println!("Report arguments for polling rate: {:?}", &report.arguments);
                     match report.arguments[0] {
                         0x01 => 1000,
                         0x02 => 500,
