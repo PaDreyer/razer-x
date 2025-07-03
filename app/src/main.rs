@@ -60,7 +60,8 @@ fn main() -> ! {
             let battery_status = match get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_battery_report) {
                 Ok(data) => {
                     let report = RazerReport::from_bytes(data.as_slice());
-                    report.arguments[1]
+                    let raw_battery_status = report.arguments[1];
+                    (raw_battery_status as f32 / 255f32 * 100f32) as u8
                 },
                 Err(e) => {
                     eprintln!("Error getting battery status: {}", e);
