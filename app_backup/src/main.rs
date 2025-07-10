@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use razer::{RazerReport, BACKLIGHT_LED, LOGO_LED, RAZER_BASILISK_V3_PRO_ID, RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US, RAZER_USB_VENDOR_ID};
 use driver::{UsbDriver};
 use gui::Gui;
+use ui_lib::create_app;
 
 use clap::{Parser, Subcommand};
 
@@ -32,7 +33,7 @@ unsafe fn get_data_for_razer_report(usb_handle: &mut driver::PlatformUsbDriver, 
     )
 }
 
-fn main() -> ! {
+fn main() {
     unsafe {
         let args = Args::parse();
         println!("Parsed arguments: {:?}", args);
@@ -78,7 +79,6 @@ fn main() -> ! {
             let poll_rate = match get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_poll_rate_report) {
                 Ok(data) => {
                     let report = RazerReport::from_bytes(data.as_slice());
-                    println!("Report arguments for polling rate: {:?}", &report.arguments);
                     match report.arguments[0] {
                         0x01 => 1000,
                         0x02 => 500,
@@ -137,8 +137,8 @@ fn main() -> ! {
             }
         };
 
-        let mut gui = Gui::new(get_battery_status, set_backlight, set_polling_rate, get_polling_rate, get_dpi_xy);
-
-        gui.run();
+        
+        let app = create_app();
+        app.run();
     }
 }
