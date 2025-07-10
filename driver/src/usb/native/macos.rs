@@ -209,7 +209,7 @@ impl UsbDriver for MacOsUsbDriver {
         devices
     }
 
-    unsafe fn send_control_msg(&mut self, request: u8, value: u16, index: u16, data: &[u8], min_wait: Duration) -> Result<IOReturn, String> {
+    unsafe fn send_control_msg(&mut self, request: u8, value: u16, index: u16, data: &[u8], min_wait: Duration) -> Result<(), String> {
         if self.device.is_null() {
             return Err("Device is null".to_string());
         }
@@ -238,7 +238,7 @@ impl UsbDriver for MacOsUsbDriver {
             return Err("Incomplete transfer".into());
         }
 
-        Ok(status)
+        Ok(())
     }
 
     unsafe fn get_feature_report(&mut self, data: &[u8], index: u16, min_wait: Duration, response_length: u16) -> Result<Vec<u8>, String> {
