@@ -1,93 +1,93 @@
-import * as React from "react";
-import {useEffect} from "react";
-import {invoke} from "@tauri-apps/api/core";
+import { useEffect, useState, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+
+export type PossiblePollingRates = 125 | 250 | 500 | 1000;
+export type PossibleMatrixBehaviors = 'none' | 'static';
+
+export type RGBColor = { r: number; g: number; b: number };
 
 export type UseDeviceManagerProps = {};
-type PossiblePollingRates = 125 | 250 | 500 | 1000;
-type PossibleMatrixBehaviors = 'none' | 'static';
 
 /**
- * Custom hook to manage device settings such as polling rate, DPI, battery level, backlight brightness, color,
- * matrixBehavior and smart wheel state.
- * @param props
+ * Custom hook to manage device settings and state for a gaming mouse or similar device.
+ * @param _
  */
-export function useDeviceManager(props: UseDeviceManagerProps) {
-    const [pollingRate, setPollingRate] = React.useState<undefined | keyof PossiblePollingRates>(undefined);
-    const [dpiXY, setDpiXY] = React.useState<undefined | [number, number]>(undefined);
-    const [batteryLevel, setBatteryLevel] = React.useState<undefined | number>(undefined);
-    const [backlightBrightness, setBacklightBrightness] = React.useState<undefined | number>(undefined);
-    const [backlightColor, setBacklightColor] = React.useState<undefined | {r: number; g: number; b: number;}>(undefined);
-    const [matrixBehavior, setMatrixBehavior] = React.useState<undefined | keyof PossibleMatrixBehaviors>(undefined);
-    const [smartWheelEnabled, setSmartWheelEnabled] = React.useState<undefined | boolean>(undefined);
+export function useDeviceManager(_: UseDeviceManagerProps) {
+    const [pollingRate, setPollingRate] = useState<PossiblePollingRates | undefined>();
+    const [dpiXY, setDpiXY] = useState<[number, number] | undefined>();
+    const [batteryLevel, setBatteryLevel] = useState<number | undefined>();
+    const [backlightBrightness, setBacklightBrightness] = useState<number | undefined>();
+    const [backlightColor, setBacklightColor] = useState<RGBColor | undefined>();
+    const [matrixBehavior, setMatrixBehavior] = useState<PossibleMatrixBehaviors | undefined>();
+    const [smartWheelEnabled, setSmartWheelEnabled] = useState<boolean | undefined>();
+    const [isError, setIsError] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialized, setInitialized] = useState(false);
 
-    // Update device polling rate when pollingRate changes
-    useEffect(() => {
-        if (pollingRate !== undefined) {
-            invoke('set_device_polling_rate', { polling_rate: pollingRate });
+    const safeInvoke = useCallback(async function <T = unknown>(
+        command: string,
+        args?: Record<string, any>,
+        callback?: (data: T) => void,
+        ignoreLoadingState = false
+    ): Promise<void> {
+        if (!ignoreLoadingState) setIsLoading(true);
+
+        try {
+            const data = await invoke<T>(command, args);
+            callback?.(data);
+        } catch (error) {
+            setIsError(true);
+        } finally {
+            if (!ignoreLoadingState) setIsLoading(false);
         }
-    }, [pollingRate]);
+    }, []);
 
-    // Update device DPI when dpiXY changes
-    useEffect(() => {
-        if (dpiXY !== undefined) {
-            invoke('set_device_dpi', { dpi_x: dpiXY[0], dpi_y: dpiXY[1] });
-        }
-    }, [dpiXY]);
+    // Generic state sync effect
+    function useSyncEffect<T>(
+        value: T | undefined,
+        command: string,
+        argBuilder: (v: T) => Record<string, any>
+    ) {
+        useEffect(() => {
+            if (value !== undefined) {
+                safeInvoke(command, argBuilder(value));
+            }
+        }, [value, command, argBuilder]);
+    }
 
-    // Update device backlight brightness when backlightBrightness changes
-    useEffect(() => {
-        if (backlightBrightness !== undefined) {
-            invoke('set_device_backlight_brightness', { brightness: backlightBrightness });
-        }
-    }, [backlightBrightness]);
+    useSyncEffect(pollingRate, "set_device_polling_rate", v => ({ polling_rate: v }));
+    useSyncEffect(dpiXY, "set_device_dpi", ([x, y]) => ({ dpi_x: x, dpi_y: y }));
+    useSyncEffect(backlightBrightness, "set_device_backlight_brightness", v => ({ brightness: v }));
+    useSyncEffect(backlightColor, "set_device_backlight_color", v => ({ color: v }));
+    useSyncEffect(matrixBehavior, "set_device_matrix_behavior", v => ({ behavior: v }));
+    useSyncEffect(smartWheelEnabled, "set_device_smartwheel_enabled", v => ({ enabled: v }));
 
-    // Update device backlight color when deviceBacklightColor changes
+    // Initial fetch
     useEffect(() => {
-        if (backlightColor !== undefined) {
-            invoke('set_device_backlight_color', { color: backlightColor });
-        }
-    }, [backlightColor]);
-
-    // Update device matrix behavior when matrixBehavior changes
-    useEffect(() => {
-        if (matrixBehavior !== undefined) {
-            invoke('set_device_matrix_behavior', { behavior: matrixBehavior });
-        }
-    }, [matrixBehavior]);
-
-    // Update device smartwheel state when smartwheelEnabled changes
-    useEffect(() => {
-        if (smartWheelEnabled !== undefined) {
-            invoke('set_device_smartwheel_enabled', { enabled: smartWheelEnabled });
-        }
-    }, [smartWheelEnabled]);
-
-    // Fetch initial device information
-    useEffect(() => {
-        invoke<string>('get_device_information')
-            .then(rawData => {
+        safeInvoke<string>("get_device_information", undefined, (rawData) => {
+            try {
                 const { polling_rate, dpi_xy, battery_level } = JSON.parse(rawData);
                 setPollingRate(polling_rate);
                 setDpiXY(dpi_xy);
                 setBatteryLevel(battery_level);
-            })
-            .catch((error) => {
-                console.error("Failed to get device information:", error);
-            });
-    }, []);
+            } catch (e) {
+                setIsError(true);
+            } finally {
+                setInitialized(true);
+            }
+        });
+    }, [safeInvoke]);
 
     return {
-        pollingRate,
-        setPollingRate,
-        dpiXY,
-        setDpiXY,
+        pollingRate, setPollingRate,
+        dpiXY, setDpiXY,
         batteryLevel,
-        backlightBrightness,
-        setBacklightBrightness,
-        setBacklightColor,
-        matrixBehavior,
-        setMatrixBehavior,
-        smartWheelEnabled,
-        setSmartWheelEnabled,
+        backlightBrightness, setBacklightBrightness,
+        backlightColor, setBacklightColor,
+        matrixBehavior, setMatrixBehavior,
+        smartWheelEnabled, setSmartWheelEnabled,
+        isError,
+        isLoading,
+        isInitialized,
     };
 }
