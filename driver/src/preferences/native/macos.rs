@@ -1,5 +1,4 @@
-use std::process::Command;
-use bindings::{set_swipe_scroll_direction, kCFPreferencesCurrentUser, kCFPreferencesAnyHost, CFPreferencesSynchronize, CFPreferencesSetValue, CFString, CFBoolean, CFPreferencesSetAppValue, CFPreferencesAppSynchronize, TCFType, CFPreferencesGetAppBooleanValue, kCFPreferencesAnyApplication, IOObjectRelease};
+use bindings::{set_swipe_scroll_direction, CFString, CFBoolean, CFPreferencesSetAppValue, CFPreferencesAppSynchronize, CFPreferencesGetAppBooleanValue, TCFType};
 use crate::preferences::PreferencesDriver;
 
 pub struct MacOsPreferencesDriver;

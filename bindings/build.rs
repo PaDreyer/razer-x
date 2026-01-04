@@ -30,9 +30,18 @@ fn main() {
                 .allowlist_function("get_plugin_uuid")
                 .allowlist_function("get_usb_device_interface_uuid")
                 .allowlist_function("set_swipe_scroll_direction")
+                .allowlist_function("CFRunLoopGetCurrent")
                 .allowlist_function("CFRunLoopGetMain")
+                .allowlist_function("CFRunLoopAddSource")
+                .allowlist_function("CFRunLoopRun")
                 .allowlist_function("CFRunLoopWakeUp")
+                .allowlist_function("CFRunLoopStop")
+                .allowlist_function("IONotificationPort.*")
+                .allowlist_function("IOServiceAddMatchingNotification")
                 .allowlist_var("kIOMasterPortDefault")
+                .allowlist_var("kIOMainPortDefault")
+                .allowlist_var("kIOFirstMatchNotification")
+                .allowlist_var("kIOTerminatedNotification")
                 .allowlist_var("KERN_SUCCESS")
                 .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
             

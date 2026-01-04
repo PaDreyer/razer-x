@@ -63,16 +63,15 @@ impl LinuxUsbDriver {
 }
 
 impl UsbDriver for LinuxUsbDriver {
-    unsafe fn new(vendor_id: u16, product_id: u16) -> Self {
-        let handle = Self::find_and_open_device(vendor_id, product_id)
-            .expect("Failed to find and open device");
+    unsafe fn new(vendor_id: u16, product_id: u16) -> Result<Self, String> {
+        let handle = Self::find_and_open_device(vendor_id, product_id)?;
 
-        Self {
+        Ok(Self {
             handle,
             vendor_id,
             product_id,
             interface_index: 0,
-        }
+        })
     }
 
     unsafe fn list_devices() -> Vec<Device> {

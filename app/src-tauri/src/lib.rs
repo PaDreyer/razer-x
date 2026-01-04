@@ -17,8 +17,11 @@ use handler::{
     get_device_dpi_stages,
     set_device_dpi_stages,
     get_device_battery_status,
+    apply_default_settings,
 };
 use types::{DeviceCollection, DeviceInfo};
+use driver::{PlatformUsbDriver, UsbDriver};
+use razer::{RAZER_BASILISK_V3_PRO_ID, RAZER_USB_VENDOR_ID};
 
 pub struct Application {
     pub app: tauri::App,
@@ -104,10 +107,58 @@ pub fn create_app() -> Application {
                     &quit_i
                 ])?;
 
-                let tray = tauri::tray::TrayIconBuilder::new()
+                let _tray = tauri::tray::TrayIconBuilder::new()
                     .icon(app.default_window_icon().unwrap().clone())
                     .menu(&menu)
                     .build(app);
+
+                // Register Hotplug Hooks
+                unsafe {
+                    PlatformUsbDriver::on_device_connected(
+                        RAZER_USB_VENDOR_ID, 
+                        RAZER_BASILISK_V3_PRO_ID, 
+                        |_device| {
+                            log::info!("USB dongle connected - applying default settings");
+                            apply_default_settings();
+                        }
+                    ).expect("Failed to register connection hook");
+
+                    PlatformUsbDriver::on_device_disconnected(
+                        RAZER_USB_VENDOR_ID, 
+                        RAZER_BASILISK_V3_PRO_ID, 
+                        |_device| {
+                            log::info!("USB dongle disconnected - reverting trackpad settings");
+                            set_mouse_wheel_inverted(true);
+                        }
+                    ).expect("Failed to register disconnection hook");
+                }
+                
+                // Start polling thread to detect wireless mouse power state changes
+                std::thread::spawn(|| {
+                    use std::sync::atomic::{AtomicBool, Ordering};
+                    use std::time::Duration;
+                    
+                    static LAST_STATE: AtomicBool = AtomicBool::new(false);
+                    
+                    loop {
+                        std::thread::sleep(Duration::from_secs(2));
+                        
+                        let is_alive = unsafe { mouse::is_mouse_alive() };
+                        let last_state = LAST_STATE.load(Ordering::Relaxed);
+                        
+                        if is_alive != last_state {
+                            LAST_STATE.store(is_alive, Ordering::Relaxed);
+                            
+                            if is_alive {
+                                log::info!("Mouse powered ON - applying settings");
+                                unsafe { apply_default_settings(); }
+                            } else {
+                                log::info!("Mouse powered OFF - reverting trackpad settings");
+                                set_mouse_wheel_inverted(true);
+                            }
+                        }
+                    }
+                });
 
                 Ok(())
             })

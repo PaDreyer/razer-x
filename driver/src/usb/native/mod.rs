@@ -19,7 +19,7 @@ pub struct Device {
 }
 
 pub trait UsbDriver {
-    unsafe fn new(vendor_id: u16, product_id: u16) -> Self;
+    unsafe fn new(vendor_id: u16, product_id: u16) -> Result<Self, String> where Self: Sized;
 
     unsafe fn list_devices() -> Vec<Device>;
     unsafe fn send_control_msg(&mut self, request: u8, value: u16, index: u16, data: &[u8], min_wait: Duration) -> Result<(), String>;

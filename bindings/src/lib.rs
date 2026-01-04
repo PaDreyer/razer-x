@@ -18,7 +18,7 @@ mod platform {
     pub use core_foundation::base::{TCFType, CFTypeRef};
     pub use core_foundation::boolean::CFBoolean;
     pub use core_foundation_sys::{
-        base::kCFAllocatorDefault,
+        base::{kCFAllocatorDefault, CFRetain},
         number::{CFNumberGetValue, kCFNumberSInt32Type},
         string::{CFStringGetCString, kCFStringEncodingUTF8},
         uuid::{CFUUIDCreateFromUUIDBytes}
@@ -32,15 +32,22 @@ mod platform {
     pub use core_foundation_sys::runloop::{
         CFRunLoopSourceRef,
         CFRunLoopRef,
-    };
-    use core_foundation_sys::dictionary::{
-        CFDictionaryRef,
-        CFMutableDictionaryRef
+        kCFRunLoopDefaultMode,
     };
     pub use core_foundation::uuid::{
         CFUUIDBytes,
         CFUUIDGetUUIDBytes,
     };
+    pub use core_foundation_sys::array::CFArrayRef;
+    pub use core_foundation_sys::base::{CFIndex, CFOptionFlags};
+    pub use core_foundation::runloop::{
+        CFRunLoopMode, CFRunLoopRunResult, CFRunLoopObserverRef, CFRunLoopTimerRef,
+        CFRunLoopSourceContext, CFRunLoopObserverCallBack, CFRunLoopTimerContext,
+        CFRunLoopTimerCallBack, CFRunLoopObserverContext
+    };
+    pub use core_foundation_sys::mach_port::CFTypeID;
+    pub use core_foundation_sys::date::{CFAbsoluteTime, CFTimeInterval};
+    pub use core_foundation_sys::dictionary::{CFDictionaryRef, CFMutableDictionaryRef};
     use std::os::raw::c_int;
 
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
