@@ -6,8 +6,6 @@ use std::sync::{Arc, Mutex};
 use std::{ptr, thread};
 use std::time::Duration;
 use tauri::AppHandle;
-use tauri::async_runtime::JoinHandle;
-use gui::Gui;
 use ui_lib::Application;
 
 mod mouse;
@@ -15,13 +13,40 @@ mod types;
 
 enum AppEvent {
     Close,
-    Open,
 }
 
 
 fn main() {
-    let app = ui_lib::create_app();
-    app.run();
+    let get_battery_status = || {
+        unsafe {
+            mouse::get_battery_status()
+        }
+    };
+
+    let get_polling_rate = || {
+        unsafe {
+            mouse::get_polling_rate()
+        }
+    };
+
+    let set_backlight = |brightness: u8| {
+        unsafe {
+            mouse::set_backlight(brightness);
+        }
+    };
+
+    let set_polling_rate = |rate: u16| {
+        unsafe {
+            mouse::set_polling_rate(rate);
+        }
+    };
+
+    let get_dpi_xy = || {
+        unsafe {
+            mouse::get_dpi_xy()
+        }
+    };
+
     /*
     let (sender, receiver) = channel::<AppEvent>();
 
@@ -60,92 +85,10 @@ fn main() {
     tray.run()
      */
 
-    /*
     let thread_handle: Arc<Mutex<Option<thread::JoinHandle<()>>>> = Arc::new(Mutex::new(None));
+    let app_handle: Arc<Mutex<Option<AppHandle>>> = Arc::new(Mutex::new(None));
     let thread_handle_clone = Arc::clone(&thread_handle);
-
-    let (sender, receiver) = channel::<AppEvent>();
-    fn create_tray_thread(sender: std::sync::mpsc::Sender<AppEvent>) -> std::thread::JoinHandle<()>{
-        std::thread::spawn(move || {
-            let sender_ref = Arc::new(Mutex::new(sender));
-
-            let get_battery_status = || {
-                unsafe {
-                    mouse::get_battery_status()
-                }
-            };
-
-            let get_polling_rate = || {
-                unsafe {
-                    mouse::get_polling_rate()
-                }
-            };
-
-            let set_backlight = |brightness: u8| {
-                unsafe {
-                    mouse::set_backlight(brightness);
-                }
-            };
-
-            let set_polling_rate = |rate: u16| {
-                unsafe {
-                    mouse::set_polling_rate(rate);
-                }
-            };
-
-            let get_dpi_xy = || {
-                unsafe {
-                    mouse::get_dpi_xy()
-                }
-            };
-
-            let sender_clone = Arc::clone(&sender_ref);
-            let open_ui = move || {
-                sender_clone.lock().unwrap().send(AppEvent::Open).unwrap();
-                true
-            };
-
-            let sender_clone = Arc::clone(&sender_ref);
-            let close_app = move || {
-                sender_clone.lock().unwrap().send(AppEvent::Close).unwrap();
-                true
-            };
-            
-            let tray = gui::Gui::new(
-                get_battery_status,
-                set_backlight,
-                set_polling_rate,
-                get_polling_rate,
-                get_dpi_xy,
-                open_ui,
-                close_app,
-            );
-            
-            tray.run();
-
-            return ();
-        })
-    }
-    
-    let tray = create_tray_thread(sender);
-    
-    let app = ui_lib::create_app();
-
-    for event in receiver {
-        match event {
-            AppEvent::Close => {
-                println!("Exiting...");
-                break;
-            },
-            AppEvent::Open => {
-                println!("Opening UI...");
-                break;
-            }
-        }
-    }
-     */
-
-    /*
+    let app_handle_clone = Arc::clone(&app_handle);
     let ok = tauri::Builder::default()
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -162,14 +105,11 @@ fn main() {
 
             Ok(())
         });
-    
     ok.build(tauri::generate_context!()).unwrap().run(|_, _| {});
-    
     let app_handle = app_handle.lock().unwrap();
     if let Some(handle) = &*app_handle {
         handle.exit(0);
     }
     //let app = ui_lib::create_app();
     //app.run();
-     */
 }

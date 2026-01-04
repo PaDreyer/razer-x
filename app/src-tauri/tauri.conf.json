@@ -13,9 +13,9 @@
     "windows": [
       {
         "title": "Razer-X",
-        "width": 800,
+        "width": 1000,
         "height": 800,
-        "resizable": false
+        "resizable": true
       }
     ],
     "security": {

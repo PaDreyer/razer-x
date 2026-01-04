@@ -17,6 +17,7 @@ export type SliderComponentProps = {
     max?: number;
     step?: number;
     className?: string;
+    id?: string;
 };
 
 export type SliderComponentHandle = {
@@ -51,8 +52,10 @@ export const SliderExtended = memo(
             },
         }));
 
+        const inputWidth = (props.max?.toString().length ?? 3) * 8;
+
         return (
-            <div className="flex items-center gap-4 mb-6">
+            <div id={props.id} className="flex items-center gap-4 flex-grow">
                 <Slider
                     min={props.min}
                     max={props.max}
@@ -71,12 +74,12 @@ export const SliderExtended = memo(
                     value={value}
                     onChange={(e) => {
                         let val = Number(e.target.value);
-                        if (val > 100) val = 100;
-                        if (val < 0) val = 0;
+                        if (props.max && val > props.max) val = props.max;
+                        if (props.min && val < props.min) val = props.min;
                         setValue(val);
                         onChange(val);
                     }}
-                    className="w-24 px-2 py-1 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none"
+                    className={`w-${inputWidth} rounded bg-gray-700 text-white border border-gray-600 focus:outline-none flex flex-shrink select-none`}
                 />
             </div>
         );

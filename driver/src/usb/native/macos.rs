@@ -3,8 +3,36 @@ use std::os::raw::{c_void, c_char};
 use std::{ptr, thread};
 use std::time::Duration;
 use super::{Device, UsbDriver};
-use bindings::{kIOReturnSuccess, IOServiceMatching, IOServiceGetMatchingServices, IOIteratorNext, IOObjectRelease, IOCFPlugInInterface, IOCreatePlugInInterfaceForService, CFUUIDGetUUIDBytes, kIOMasterPortDefault, io_iterator_t, get_plugin_uuid, get_usb_device_uuid, get_usb_device_interface_uuid, io_registry_entry_t, IORegistryEntryCreateCFProperty, kCFStringEncodingUTF8, CFStringGetCString, CFString, TCFType, IOUSBDeviceInterface, IOUSBDevRequest, IOReturn, CFNumberGetValue, kCFNumberSInt32Type};
+use bindings::{
+    kIOReturnSuccess, 
+    IOServiceMatching,
+    IOServiceGetMatchingServices,
+    IOIteratorNext,
+    IOObjectRelease,
+    IOCFPlugInInterface,
+    IOCreatePlugInInterfaceForService,
+    IOServiceAddMatchingNotification,
+    
+    CFUUIDGetUUIDBytes,
+    kIOMasterPortDefault,
+    io_iterator_t,
+    get_plugin_uuid,
+    get_usb_device_uuid,
+    get_usb_device_interface_uuid,
+    io_registry_entry_t,
+    IORegistryEntryCreateCFProperty,
+    kCFStringEncodingUTF8,
+    CFStringGetCString,
+    CFString,
+    TCFType,
+    IOUSBDeviceInterface,
+    IOUSBDevRequest,
+    IOReturn,
+    CFNumberGetValue,
+    kCFNumberSInt32Type,
+};
 use log::{log, info, debug, warn, error};
+
 
 unsafe fn get_string_property(entry: io_registry_entry_t, key: &str) -> Option<String> {
     let cf_key = CFString::new(key);
@@ -154,10 +182,11 @@ impl UsbDriver for MacOsUsbDriver {
                 continue;
             }
 
-            IOObjectRelease(iter);
             device = Some(iface_ptr_ptr);
             break;
         }
+        
+        IOObjectRelease(iter);
 
         if device.is_none() {
             panic!("Device not found");
@@ -293,5 +322,29 @@ impl UsbDriver for MacOsUsbDriver {
         self.device = ptr::null_mut();
 
         Ok(())
+    }
+
+    fn on_device_connected<F>(vendor_id: u16, product_id: u16, mut callback: F) -> Result<(), String>
+    where
+        F: FnMut(&Device) + Send + 'static,
+    {
+        // https://developer.apple.com/documentation/iokit/1514362-ioserviceaddmatchingnotification
+        unimplemented!("Device connection notifications are not implemented for macOS");
+    }
+
+    fn on_device_disconnected<F>(vendor_id: u16, product_id: u16, mut callback: F) -> Result<(), String>
+    where
+        F: FnMut(&Device) + Send + 'static,
+    {
+        // https://developer.apple.com/documentation/iokit/1588673-iohiddeviceregisterremovalcallba
+        unimplemented!("Device disconnection notifications are not implemented for macOS");
+    }
+
+    fn on_state_changed<F>(&mut self, mut callback: F) -> Result<(), String>
+    where
+        F: FnMut(&Device, &mut c_void) + Send + 'static,
+    {
+        // This function can be implemented using IOKit notifications or similar mechanisms.
+        unimplemented!("State change notifications are not implemented for macOS");
     }
 }

@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { IDeviceManagerApi } from "./types.ts";
+import {IDeviceInformation, IDeviceManagerApi} from "./types.ts";
 
 
 /**
@@ -7,12 +7,25 @@ import { IDeviceManagerApi } from "./types.ts";
  */
 export type DeviceManagerContextState = {
     api: IDeviceManagerApi;
+    deviceInformation: IDeviceInformation | null;
+    isLoading: boolean;
+    error: { isError: boolean; message: string | null };
+    isInitialized: boolean;
+    setBacklightBrightness: (brightness: number) => Promise<void>;
+    setBacklightColor: (color: { r: number; g: number; b: number }) => Promise<void>;
+    setDpiXY: (dpiX: number, dpiY: number) => Promise<void>;
+    setPollingRate: (pollingRate: number) => Promise<void>;
+    setMouseWheelInverted: (inverted: boolean) => Promise<void>;
+    setSmartWheelEnabled: (enabled: boolean) => Promise<void>;
+    getDpiStages: () => Promise<Array<{ dpiX: number; dpiY: number; stage: number; active: number }>>;
 };
 
 /**
  * Default context state for the Device Manager, initialized with a proxy that throws errors on access.
  * This ensures that any attempt to use the API without proper initialization will result in an error.
  */
+// TODO: Fix this default implementation to provide a more meaningful default state.
+// @ts-ignore
 export const DefaultDeviceManagerContext: DeviceManagerContextState = {
     api: new Proxy({}, { get() { throw new Error() }, set() { throw new Error() } }) as IDeviceManagerApi,
 };

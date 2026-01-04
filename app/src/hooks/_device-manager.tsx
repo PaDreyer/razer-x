@@ -11,6 +11,7 @@ export type UseDeviceManagerProps = {};
 /**
  * Custom hook to manage device settings and state for a gaming mouse or similar device.
  * @param _
+ * @deprecated use components/device-manager.tsx instead
  */
 export function useDeviceManager(_: UseDeviceManagerProps) {
     const [pollingRate, setPollingRate] = useState<PossiblePollingRates | undefined>();

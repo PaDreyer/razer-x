@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+html:active {
+  cursor: default;
+}
+h1:active,
+h2:active,
+h3:active,
+h4:active,
+h5:active,
+h6:active,
+span:active,
+p:active{
+  cursor: default;
+}
+
 .logo.vite:hover {
   filter: drop-shadow(0 0 2em #747bff);
 }
