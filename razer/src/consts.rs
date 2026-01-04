@@ -8,6 +8,7 @@ pub const VARSTORE : u8 =         0x01;
 pub const RAZER_USB_VENDOR_ID: u16 = 0x1532;
 pub const RAZER_BASILISK_V3_PRO_ID: u16 = 0x00AB;
 pub const RAZER_USB_REPORT_LEN: u8 =  0x5A;
+pub const RAZER_MOUSE_MAX_DPI_STAGES: u8 = 5;
 
 pub const RAZER_CMD_BUSY         : u8 = 0x01;
 pub const RAZER_CMD_SUCCESSFUL   : u8 = 0x02;

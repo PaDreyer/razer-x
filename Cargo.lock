@@ -76,6 +76,7 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "driver",
+ "gui",
  "razer",
  "serde",
  "serde_json",

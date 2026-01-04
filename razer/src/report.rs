@@ -13,10 +13,19 @@
  * Command Class is the type of command being issued
  * Command ID is the type of command being send. Direction 0 is Host->Device, Direction 1 is Device->Host. AKA Get LED 0x80, Set LED 0x00
  *
+
+ + Best overview: https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L5268
  * */
 
 use crate::consts::RAZER_USB_REPORT_LEN;
-use crate::{NOSTORE, VARSTORE, ZERO_LED};
+use crate::{NOSTORE, RAZER_MOUSE_MAX_DPI_STAGES, VARSTORE, ZERO_LED};
+
+#[derive(Debug)]
+pub struct DpiStage {
+    pub dpi_x: u16,
+    pub dpi_y: u16,
+    pub stage: u8,
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct TransactionId(u8);
@@ -75,7 +84,7 @@ pub struct RazerReport {
     command_class: u8,
     command_id: CommandId,
     pub arguments: [u8; 80],
-    pub crc: u8,/*xor'ed bytes of report*/
+    pub crc: u8, /*xor'ed bytes of report*/
     reserved: u8, /*0x0*/
 }
 
@@ -298,9 +307,13 @@ impl RazerReport {
         }
     }
 
-    // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L1812
+    // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2115
     /**
-    * Response: Brightness is at arg[0] for dock and arg[1] for led_brightness
+    * Response: Brightness is at arg[0] for dock and arg[1] for led_brightness (where does this come from?: https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2134)
+    * same as get_led_brightness_report(led_id: u8)
+    * Note from devs:
+    * // For old-school led commands
+    * // matrix_brightness should mostly be called backlight_led_brightness (but it's too much work now for old devices)
     */
     pub fn get_matrix_brightness_report() -> Self {
         let mut arguments = [0u8; 80];
@@ -325,7 +338,7 @@ impl RazerReport {
     pub fn set_matrix_brightness_report(brightness: u8) -> Self {
         let mut arguments = [0u8; 80];
         
-        arguments[0] = 0x01; // VARSTORE
+        arguments[0] = VARSTORE;
         arguments[1] = ZERO_LED;
         arguments[2] = brightness;
         
@@ -343,7 +356,9 @@ impl RazerReport {
         }
     }
 
-    // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L3212
+    // https://github.com/openrazer/openrazer/blob/master/driver/razerchromacommon.c#L731
+    // razer_chroma_extended_matrix_get_brightness
+    // same as get_matrix_brightness_report, but with led_id
     pub fn get_led_brightness_report(led_id: u8) -> Self {
         let mut arguments = [0u8; 80];
         arguments[0] = 0x01;
@@ -403,13 +418,95 @@ impl RazerReport {
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2510
-    fn get_dpi_stages_report() -> Self {
-        unimplemented!()
+    /*
+    /**
+         * Read device file "dpi_stages"
+         *
+         * Writes the DPI stages array to buf.
+         *
+         * Each DPI stage is described by 4 bytes:
+         *   - 2 bytes (unsigned short) for x-axis DPI
+         *   - 2 bytes (unsigned short) for y-axis DPI
+         *
+         * Always writes 1+n*4 bytes:
+         *   - 1 byte: active DPI stage number, >= 0 and <= n.
+         *   - n*4 bytes: n DPI stages.
+         */
+
+            unsigned char stages_count;
+            ssize_t count;                 // bytes written
+            unsigned int i;                // iterator over stages_count
+            unsigned char *args;           // pointer to the next dpi value in response.arguments
+
+
+     */
+    pub fn get_dpi_stages_report() -> Self {
+        let mut arguments = [0u8; 80];
+        arguments[0] = VARSTORE;
+
+        Self {
+            status: 0x00,
+            transaction_id: TransactionId(0x1f),
+            remaining_packets: 0x00,
+            protocol_type: 0x00,
+            data_size: 0x26, // stages_count
+            command_class: 0x04,
+            command_id: CommandId(0x86),
+            arguments,
+            crc: 0x00,
+            reserved: 0x00,
+        }
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2400
-    fn set_dpi_stages_report() -> Self {
-        unimplemented!()
+    pub fn set_dpi_stages_report(active_stage: u8, dpi_stages: Vec<DpiStage>) -> Self {
+        let stages_count = dpi_stages.len();
+        assert!(
+            stages_count < RAZER_MOUSE_MAX_DPI_STAGES as usize,
+            "Too many DPI stages, max is {}",
+            RAZER_MOUSE_MAX_DPI_STAGES
+        );
+
+        let mut arguments = [0u8; 80];
+        arguments[0] = VARSTORE;
+        arguments[1] = active_stage;
+        arguments[2] = stages_count as u8;
+
+        let mut offset = 3;
+
+        for (i, stage) in dpi_stages.iter().enumerate() {
+            // Stage number
+            arguments[offset] = i as u8;
+            offset += 1;
+
+            // DPI X
+            arguments[offset] = (stage.dpi_x >> 8) as u8;
+            arguments[offset + 1] = (stage.dpi_x & 0xFF) as u8;
+            offset += 2;
+
+            // DPI Y
+            arguments[offset] = (stage.dpi_y >> 8) as u8;
+            arguments[offset + 1] = (stage.dpi_y & 0xFF) as u8;
+            offset += 2;
+
+            // Reserved
+            arguments[offset] = 0;
+            arguments[offset + 1] = 0;
+            offset += 2;
+        }
+
+        Self {
+            status: 0x00,
+            transaction_id: TransactionId(0x1f),
+            remaining_packets: 0x00,
+            protocol_type: 0x00,
+            data_size: 0x26,
+            command_class: 0x04,
+            command_id: CommandId(0x06),
+            arguments,
+            crc: 0x00,
+            reserved: 0x00,
+        }
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2610
@@ -565,10 +662,3 @@ impl PartialEq<Self> for RazerReport {
             self.reserved == other.reserved
     }
 }
-
-pub struct RazerKeyTranslation {
-    from: u16,
-    to: u16,
-    flags: u8,
-}
-

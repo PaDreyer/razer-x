@@ -4,7 +4,19 @@
 
 #[cfg(target_os = "macos")]
 mod platform {
-    pub use core_foundation::base::TCFType;
+    pub use core_foundation_sys::preferences::{
+        CFPreferencesSetValue,
+        CFPreferencesAppSynchronize,
+        CFPreferencesSynchronize,
+        CFPreferencesSetAppValue,
+        CFPreferencesCopyAppValue,
+        CFPreferencesGetAppBooleanValue,
+        kCFPreferencesCurrentUser,
+        kCFPreferencesAnyHost,
+        kCFPreferencesAnyApplication,
+    };
+    pub use core_foundation::base::{TCFType, CFTypeRef};
+    pub use core_foundation::boolean::CFBoolean;
     pub use core_foundation_sys::{
         base::kCFAllocatorDefault,
         number::{CFNumberGetValue, kCFNumberSInt32Type},
@@ -16,7 +28,6 @@ mod platform {
     // Now they are compatible with the bindings
     pub use core_foundation::string::CFString;
     use core_foundation::string::CFStringRef;
-    use core_foundation_sys::base::CFTypeRef;
     use core_foundation_sys::base::CFAllocatorRef;
     pub use core_foundation_sys::runloop::{
         CFRunLoopSourceRef,
@@ -31,8 +42,6 @@ mod platform {
         CFUUIDGetUUIDBytes,
     };
     use std::os::raw::c_int;
-    use std::collections::HashMap;
-    use std::sync::OnceLock;
 
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
     
@@ -44,16 +53,10 @@ mod platform {
         pub static kIOCFPlugInInterfaceID: CFUUIDRef;
         pub static kIOUSBDeviceInterfaceID: CFUUIDRef;
     }
-
-    // sys_iokit
+    
     const SYS_IOKIT: c_int = ((0x38) & 0x3f) << 26;
     const SUB_IOKIT_COMMON: c_int = ((0) & 0xfff) << 14;
-
-    // IOReturn
-    // Already defined
-    //pub type IOReturn = kern_return_t;
-
-    // OK
+    
     pub const kIOReturnSuccess: IOReturn = KERN_SUCCESS as c_int;
     // general error
     pub const kIOReturnError: IOReturn = SYS_IOKIT | SUB_IOKIT_COMMON | 0x2bc;
@@ -163,84 +166,6 @@ mod platform {
     pub const kIOReturnNotFound: IOReturn = SYS_IOKIT | SUB_IOKIT_COMMON | 0x2f0;
     // should never be seen
     pub const kIOReturnInvalid: IOReturn = SYS_IOKIT | SUB_IOKIT_COMMON | 0x1;
-
-
-    const K_SUCCESS: IOReturn = kIOReturnSuccess;
-
-    pub fn log_ior_error(context: &str, code: IOReturn) {
-        if code == K_SUCCESS {
-            return;
-        }
-
-        let name = IOKIT_ERRORS
-            .get()
-            .unwrap()
-            .get(&code)
-            .map(|s| *s)
-            .unwrap_or("Unknown");
-
-        println!("❌ {} failed: {} (0x{:08x})", context, name, code as u32);
-    }
-
-    static IOKIT_ERRORS: OnceLock<HashMap<IOReturn, &'static str>> = OnceLock::new();
-
-    pub fn init_ior_errors() {
-        let mut m = HashMap::new();
-        m.insert(kIOReturnError, "kIOReturnError");
-        m.insert(kIOReturnNoMemory, "kIOReturnNoMemory");
-        m.insert(kIOReturnNoResources, "kIOReturnNoResources");
-        m.insert(kIOReturnIPCError, "kIOReturnIPCError");
-        m.insert(kIOReturnNoDevice, "kIOReturnNoDevice");
-        m.insert(kIOReturnNotPrivileged, "kIOReturnNotPrivileged");
-        m.insert(kIOReturnBadArgument, "kIOReturnBadArgument");
-        m.insert(kIOReturnLockedRead, "kIOReturnLockedRead");
-        m.insert(kIOReturnLockedWrite, "kIOReturnLockedWrite");
-        m.insert(kIOReturnExclusiveAccess, "kIOReturnExclusiveAccess");
-        m.insert(kIOReturnBadMessageID, "kIOReturnBadMessageID");
-        m.insert(kIOReturnUnsupported, "kIOReturnUnsupported");
-        m.insert(kIOReturnVMError, "kIOReturnVMError");
-        m.insert(kIOReturnInternalError, "kIOReturnInternalError");
-        m.insert(kIOReturnIOError, "kIOReturnIOError");
-        m.insert(kIOReturnCannotLock, "kIOReturnCannotLock");
-        m.insert(kIOReturnNotOpen, "kIOReturnNotOpen");
-        m.insert(kIOReturnNotReadable, "kIOReturnNotReadable");
-        m.insert(kIOReturnNotWritable, "kIOReturnNotWritable");
-        m.insert(kIOReturnNotAligned, "kIOReturnNotAligned");
-        m.insert(kIOReturnBadMedia, "kIOReturnBadMedia");
-        m.insert(kIOReturnStillOpen, "kIOReturnStillOpen");
-        m.insert(kIOReturnRLDError, "kIOReturnRLDError");
-        m.insert(kIOReturnDMAError, "kIOReturnDMAError");
-        m.insert(kIOReturnBusy, "kIOReturnBusy");
-        m.insert(kIOReturnTimeout, "kIOReturnTimeout");
-        m.insert(kIOReturnOffline, "kIOReturnOffline");
-        m.insert(kIOReturnNotReady, "kIOReturnNotReady");
-        m.insert(kIOReturnNotAttached, "kIOReturnNotAttached");
-        m.insert(kIOReturnNoChannels, "kIOReturnNoChannels");
-        m.insert(kIOReturnNoSpace, "kIOReturnNoSpace");
-        m.insert(kIOReturnPortExists, "kIOReturnPortExists");
-        m.insert(kIOReturnCannotWire, "kIOReturnCannotWire");
-        m.insert(kIOReturnNoInterrupt, "kIOReturnNoInterrupt");
-        m.insert(kIOReturnNoFrames, "kIOReturnNoFrames");
-        m.insert(kIOReturnMessageTooLarge, "kIOReturnMessageTooLarge");
-        m.insert(kIOReturnNotPermitted, "kIOReturnNotPermitted");
-        m.insert(kIOReturnNoPower, "kIOReturnNoPower");
-        m.insert(kIOReturnNoMedia, "kIOReturnNoMedia");
-        m.insert(kIOReturnUnformattedMedia, "kIOReturnUnformattedMedia");
-        m.insert(kIOReturnUnsupportedMode, "kIOReturnUnsupportedMode");
-        m.insert(kIOReturnUnderrun, "kIOReturnUnderrun");
-        m.insert(kIOReturnOverrun, "kIOReturnOverrun");
-        m.insert(kIOReturnDeviceError, "kIOReturnDeviceError");
-        m.insert(kIOReturnNoCompletion, "kIOReturnNoCompletion");
-        m.insert(kIOReturnAborted, "kIOReturnAborted");
-        m.insert(kIOReturnNoBandwidth, "kIOReturnNoBandwidth");
-        m.insert(kIOReturnNotResponding, "kIOReturnNotResponding");
-        m.insert(kIOReturnIsoTooOld, "kIOReturnIsoTooOld");
-        m.insert(kIOReturnIsoTooNew, "kIOReturnIsoTooNew");
-        m.insert(kIOReturnNotFound, "kIOReturnNotFound");
-        m.insert(kIOReturnInvalid, "kIOReturnInvalid");
-
-        IOKIT_ERRORS.set(m).ok();
-    }
 }
 
 #[cfg(target_os = "linux")]

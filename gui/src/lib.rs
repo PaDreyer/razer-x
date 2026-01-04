@@ -31,6 +31,8 @@ impl Gui {
         set_polling_rate: impl FnMut(u16) + 'static,
         get_polling_rate: impl FnMut() -> u16 + 'static,
         get_dpi_xy: impl FnMut() -> (u16, u16) + 'static,
+        open_ui: impl FnMut() -> bool + 'static,
+        close_app: impl FnMut() -> bool + 'static,
     ) -> Self {
         let run_loop = RunLoop::new();
 
