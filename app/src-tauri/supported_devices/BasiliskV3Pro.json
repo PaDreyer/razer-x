@@ -1,0 +1,11 @@
+{
+  "name": "Basilisk V3 Proo",
+  "vendorId": "asd",
+  "productId": "asd",
+  "deviceType": "asd",
+  "features": [
+    "RGB",
+    "RGBExtended",
+    "BatteryStatus"
+  ]
+}

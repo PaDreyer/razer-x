@@ -2,18 +2,19 @@ const OFF: u16 = 0x00;
 const ON : u16 = 0x01;
 
 // LED STORAGE Options
-pub const NOSTORE  : u16 =         0x00;
-pub const VARSTORE : u16 =         0x01;
+pub const NOSTORE  : u8 =         0x00;
+pub const VARSTORE : u8 =         0x01;
 
 pub const RAZER_USB_VENDOR_ID: u16 = 0x1532;
 pub const RAZER_BASILISK_V3_PRO_ID: u16 = 0x00AB;
-pub const RAZER_USB_REPORT_LEN: u16 =  0x5A;
+pub const RAZER_USB_REPORT_LEN: u8 =  0x5A;
+pub const RAZER_MOUSE_MAX_DPI_STAGES: u8 = 5;
 
-pub const RAZER_CMD_BUSY         : u16 = 0x01;
-pub const RAZER_CMD_SUCCESSFUL   : u16 = 0x02;
-pub const RAZER_CMD_FAILURE      : u16 = 0x03;
-pub const RAZER_CMD_TIMEOUT      : u16 = 0x04;
-pub const RAZER_CMD_NOT_SUPPORTED: u16 = 0x05;
+pub const RAZER_CMD_BUSY         : u8 = 0x01;
+pub const RAZER_CMD_SUCCESSFUL   : u8 = 0x02;
+pub const RAZER_CMD_FAILURE      : u8 = 0x03;
+pub const RAZER_CMD_TIMEOUT      : u8 = 0x04;
+pub const RAZER_CMD_NOT_SUPPORTED: u8 = 0x05;
 
 pub const RAZER_NEW_MOUSE_RECEIVER_WAIT_MIN_US: u16 = 31000;
 pub const RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US: u16 = 31100;

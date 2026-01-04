@@ -13,11 +13,21 @@
  * Command Class is the type of command being issued
  * Command ID is the type of command being send. Direction 0 is Host->Device, Direction 1 is Device->Host. AKA Get LED 0x80, Set LED 0x00
  *
+
+ + Best overview: https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L5268
  * */
 
 use crate::consts::RAZER_USB_REPORT_LEN;
+use crate::{NOSTORE, RAZER_MOUSE_MAX_DPI_STAGES, VARSTORE, ZERO_LED};
 
-#[derive(Copy, Clone)]
+#[derive(Debug)]
+pub struct DpiStage {
+    pub dpi_x: u16,
+    pub dpi_y: u16,
+    pub stage: u8,
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct TransactionId(u8);
 
 impl TransactionId {
@@ -40,7 +50,7 @@ impl TransactionId {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct CommandId(u8);
 
 impl CommandId {
@@ -64,7 +74,7 @@ impl CommandId {
 }
 
 #[repr(C, packed)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct RazerReport {
     status: u8,
     transaction_id: TransactionId, /* */
@@ -74,7 +84,7 @@ pub struct RazerReport {
     command_class: u8,
     command_id: CommandId,
     pub arguments: [u8; 80],
-    pub crc: u8,/*xor'ed bytes of report*/
+    pub crc: u8, /*xor'ed bytes of report*/
     reserved: u8, /*0x0*/
 }
 
@@ -230,8 +240,14 @@ impl RazerReport {
         assert!(dpi_x >= 100 && dpi_x <= 35000, "dpi_x doesn't fit between 100 and 35000");
         assert!(dpi_y >= 100 && dpi_y <= 35000, "dpi_y doesn't fit between 100 and 35000");
 
+        // c-like
+        // report.arguments[1] = (dpi_x >> 8) & 0x00FF;
+        // report.arguments[2] = dpi_x & 0x00FF;
+        // report.arguments[3] = (dpi_y >> 8) & 0x00FF;
+        // report.arguments[4] = dpi_y & 0x00FF;
+
         let mut arguments = [0u8; 80];
-        arguments[0] = 0x01; // VARSTORE
+        arguments[0] = VARSTORE;
         arguments[1] = ((dpi_x >> 8) & 0x00FF) as u8;
         arguments[2] = (dpi_x & 0x00FF) as u8;
         arguments[3] = ((dpi_y >> 8) & 0x00FF) as u8;
@@ -291,14 +307,18 @@ impl RazerReport {
         }
     }
 
-    // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L1812
+    // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2115
     /**
-    * Response: Brightness is at arg[0] for dock and arg[1] for led_brightness
+    * Response: Brightness is at arg[0] for dock and arg[1] for led_brightness (where does this come from?: https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2134)
+    * same as get_led_brightness_report(led_id: u8)
+    * Note from devs:
+    * // For old-school led commands
+    * // matrix_brightness should mostly be called backlight_led_brightness (but it's too much work now for old devices)
     */
     pub fn get_matrix_brightness_report() -> Self {
         let mut arguments = [0u8; 80];
-        arguments[0] = 0x01;
-        arguments[1] = 0x00;
+        arguments[0] = VARSTORE;
+        arguments[1] = ZERO_LED;
 
         Self {
             status: 0x00,
@@ -318,9 +338,9 @@ impl RazerReport {
     pub fn set_matrix_brightness_report(brightness: u8) -> Self {
         let mut arguments = [0u8; 80];
         
-        arguments[0] = 0x01; // VARSTORE
-        arguments[1] = 0x00; // ZERO_LED
-        arguments[2] = brightness;;
+        arguments[0] = VARSTORE;
+        arguments[1] = ZERO_LED;
+        arguments[2] = brightness;
         
         Self {
             status: 0x00,
@@ -336,7 +356,9 @@ impl RazerReport {
         }
     }
 
-    // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L3212
+    // https://github.com/openrazer/openrazer/blob/master/driver/razerchromacommon.c#L731
+    // razer_chroma_extended_matrix_get_brightness
+    // same as get_matrix_brightness_report, but with led_id
     pub fn get_led_brightness_report(led_id: u8) -> Self {
         let mut arguments = [0u8; 80];
         arguments[0] = 0x01;
@@ -396,13 +418,95 @@ impl RazerReport {
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2510
-    fn get_dpi_stages_report() -> Self {
-        unimplemented!()
+    /*
+    /**
+         * Read device file "dpi_stages"
+         *
+         * Writes the DPI stages array to buf.
+         *
+         * Each DPI stage is described by 4 bytes:
+         *   - 2 bytes (unsigned short) for x-axis DPI
+         *   - 2 bytes (unsigned short) for y-axis DPI
+         *
+         * Always writes 1+n*4 bytes:
+         *   - 1 byte: active DPI stage number, >= 0 and <= n.
+         *   - n*4 bytes: n DPI stages.
+         */
+
+            unsigned char stages_count;
+            ssize_t count;                 // bytes written
+            unsigned int i;                // iterator over stages_count
+            unsigned char *args;           // pointer to the next dpi value in response.arguments
+
+
+     */
+    pub fn get_dpi_stages_report() -> Self {
+        let mut arguments = [0u8; 80];
+        arguments[0] = VARSTORE;
+
+        Self {
+            status: 0x00,
+            transaction_id: TransactionId(0x1f),
+            remaining_packets: 0x00,
+            protocol_type: 0x00,
+            data_size: 0x26, // stages_count
+            command_class: 0x04,
+            command_id: CommandId(0x86),
+            arguments,
+            crc: 0x00,
+            reserved: 0x00,
+        }
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2400
-    fn set_dpi_stages_report() -> Self {
-        unimplemented!()
+    pub fn set_dpi_stages_report(active_stage: u8, dpi_stages: Vec<DpiStage>) -> Self {
+        let stages_count = dpi_stages.len();
+        assert!(
+            stages_count < RAZER_MOUSE_MAX_DPI_STAGES as usize,
+            "Too many DPI stages, max is {}",
+            RAZER_MOUSE_MAX_DPI_STAGES
+        );
+
+        let mut arguments = [0u8; 80];
+        arguments[0] = VARSTORE;
+        arguments[1] = active_stage;
+        arguments[2] = stages_count as u8;
+
+        let mut offset = 3;
+
+        for (i, stage) in dpi_stages.iter().enumerate() {
+            // Stage number
+            arguments[offset] = i as u8;
+            offset += 1;
+
+            // DPI X
+            arguments[offset] = (stage.dpi_x >> 8) as u8;
+            arguments[offset + 1] = (stage.dpi_x & 0xFF) as u8;
+            offset += 2;
+
+            // DPI Y
+            arguments[offset] = (stage.dpi_y >> 8) as u8;
+            arguments[offset + 1] = (stage.dpi_y & 0xFF) as u8;
+            offset += 2;
+
+            // Reserved
+            arguments[offset] = 0;
+            arguments[offset + 1] = 0;
+            offset += 2;
+        }
+
+        Self {
+            status: 0x00,
+            transaction_id: TransactionId(0x1f),
+            remaining_packets: 0x00,
+            protocol_type: 0x00,
+            data_size: 0x26,
+            command_class: 0x04,
+            command_id: CommandId(0x06),
+            arguments,
+            crc: 0x00,
+            reserved: 0x00,
+        }
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2610
@@ -470,6 +574,78 @@ impl RazerReport {
     fn set_device_mode_report() -> Self {
         unimplemented!()
     }
+    
+    
+    // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L3820
+    
+    // static ssize_t razer_attr_write_matrix_effect_static_common(struct device *dev, struct device_attribute *attr, const char *buf, size_t count, unsigned char led_id)
+    //      request = razer_chroma_extended_matrix_effect_static(VARSTORE, led_id, (struct razer_rgb*)&buf[0]);
+    //      request.transaction_id.id = 0x1f;
+    
+    // struct razer_report razer_chroma_extended_matrix_effect_static(unsigned char variable_storage, unsigned char led_id, struct razer_rgb *rgb)
+    //      struct razer_report report = razer_chroma_extended_matrix_effect_base(0x09, variable_storage, led_id, 0x01);
+    //      report.arguments[5] = 0x01;
+    //      report.arguments[6] = rgb->r;
+    //      report.arguments[7] = rgb->g;
+    //      report.arguments[8] = rgb->b;
+    
+    // static struct razer_report razer_chroma_extended_matrix_effect_base(unsigned char arg_size, unsigned char variable_storage, unsigned char led_id, unsigned char effect_id)
+    //      struct razer_report report = get_razer_report(0x0F, 0x02, arg_size);
+    //      report.arguments[0] = variable_storage;
+    //      report.arguments[1] = led_id;
+    //      report.arguments[2] = effect_id;
+    
+    // struct razer_report get_razer_report(unsigned char command_class, unsigned char command_id, unsigned char data_size)
+    pub fn set_matrix_effect_static_report(rgb: [u8; 3], led_id: Option<u8>) -> Self {
+        let mut arguments = [0u8; 80];
+        arguments[0] = VARSTORE;
+        arguments[1] = led_id.unwrap_or(ZERO_LED);
+        arguments[2] = 0x01; // effect type -> static
+        
+        arguments[5] = 0x01;
+        arguments[6] = rgb[0];
+        arguments[7] = rgb[1];
+        arguments[8] = rgb[2];
+        
+        Self {
+            status: 0x00,
+            transaction_id: TransactionId(0x1f),
+            remaining_packets: 0x00,
+            protocol_type: 0x00,
+            data_size: 0x09,
+            command_class: 0x0F,
+            command_id: CommandId(0x02),
+            arguments,
+            crc: 0x00,
+            reserved: 0x00,
+        }
+    }
+    
+    // https://github.com/openrazer/openrazer/blob/master/driver/razerchromacommon.c#L134C21-L134C54
+    
+    // struct razer_report razer_chroma_standard_get_led_rgb(unsigned char variable_storage, unsigned char led_id)
+    //      struct razer_report report = get_razer_report(0x03, 0x81, 0x05);
+    //      report.arguments[0] = variable_storage;
+    //      report.arguments[1] = led_id;
+    /// 
+    pub fn get_led_rgb_report(led_id: Option<u8>) -> Self {
+        let mut arguments = [0u8; 80];
+        arguments[0] = VARSTORE; // check if VARSTORE or NOSTORE
+        arguments[1] = led_id.unwrap_or(ZERO_LED);
+        
+        Self {
+            status: 0x00,
+            transaction_id: TransactionId(0x1f),
+            remaining_packets: 0x00,
+            protocol_type: 0x00,
+            data_size: 0x05,
+            command_class: 0x03,
+            command_id: CommandId(0x81),
+            arguments,
+            crc: 0x00,
+            reserved: 0x00,
+        }
+    }
 }
 
 impl PartialEq<Self> for RazerReport {
@@ -485,10 +661,4 @@ impl PartialEq<Self> for RazerReport {
             self.crc == other.crc &&
             self.reserved == other.reserved
     }
-}
-
-pub struct RazerKeyTranslation {
-    from: u16,
-    to: u16,
-    flags: u8,
 }

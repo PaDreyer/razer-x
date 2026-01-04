@@ -9,6 +9,8 @@
       <sourceFolder url="file://$MODULE_DIR$/gui/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/service-installer/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/store/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/app/src-tauri/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/app_backup/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.tmp" />
       <excludeFolder url="file://$MODULE_DIR$/temp" />
       <excludeFolder url="file://$MODULE_DIR$/tmp" />
