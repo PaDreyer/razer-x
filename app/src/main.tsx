@@ -1,9 +1,11 @@
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
+import './App.css';
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
+import {getCurrentWindow} from "@tauri-apps/api/window";
 
 // Create a new router instance
 const router = createRouter({ routeTree })
@@ -24,4 +26,11 @@ if (!rootElement.innerHTML) {
             <RouterProvider router={router} />
         </StrictMode>,
     )
+    const window = getCurrentWindow()
+
+    const unlisten = await getCurrentWindow().onCloseRequested(async (event) => {
+        console.log("event: ", event);
+        event.preventDefault();
+        await window.hide();
+    });
 }
