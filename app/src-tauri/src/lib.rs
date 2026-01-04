@@ -110,6 +110,25 @@ pub fn create_app() -> Application {
                 let _tray = tauri::tray::TrayIconBuilder::new()
                     .icon(app.default_window_icon().unwrap().clone())
                     .menu(&menu)
+                    .on_menu_event(|app, event| {
+                        match event.id.as_ref() {
+                            "open_ui" => {
+                                if let Some(window) = app.get_webview_window("main") {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                }
+                            }
+                            "sync" => {
+                                unsafe {
+                                    apply_default_settings();
+                                }
+                            }
+                            "quit" => {
+                                app.exit(0);
+                            }
+                            _ => {}
+                        }
+                    })
                     .build(app);
 
                 // Register Hotplug Hooks
