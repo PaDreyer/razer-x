@@ -12,15 +12,18 @@ use handler::{
     get_device_led_rgb,
     get_target_os,
     set_mouse_wheel_inverted,
+    set_device_smart_wheel,
     get_device_backlight_brightness,
     set_device_dpi,
     get_device_dpi_stages,
     set_device_dpi_stages,
     get_device_battery_status,
-    apply_default_settings,
+    apply_saved_settings,
+    get_saved_settings,
+    save_settings,
 };
 use types::{DeviceCollection, DeviceInfo};
-use driver::{PlatformUsbDriver, UsbDriver};
+use driver::{PlatformUsbDriver, UsbDriver, PreferencesDriver};
 use razer::{RAZER_BASILISK_V3_PRO_ID, RAZER_USB_VENDOR_ID};
 
 pub struct Application {
@@ -68,9 +71,12 @@ pub fn create_app() -> Application {
                 get_device_led_rgb,
                 get_target_os,
                 set_mouse_wheel_inverted,
+                set_device_smart_wheel,
                 get_device_dpi_stages,
                 set_device_dpi_stages,
-                get_device_battery_status,])
+                get_device_battery_status,
+                get_saved_settings,
+                save_settings,])
             .on_window_event(|window, event| match event {
                 tauri::WindowEvent::CloseRequested { api, .. } => {
                     #[cfg(not(target_os = "macos"))] {
@@ -119,9 +125,12 @@ pub fn create_app() -> Application {
                                 }
                             }
                             "sync" => {
-                                unsafe {
-                                    apply_default_settings();
-                                }
+                                let app_handle = app.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    if let Ok(settings) = get_saved_settings(app_handle) {
+                                        unsafe { apply_saved_settings(&settings); }
+                                    }
+                                });
                             }
                             "quit" => {
                                 app.exit(0);
@@ -132,13 +141,19 @@ pub fn create_app() -> Application {
                     .build(app);
 
                 // Register Hotplug Hooks
+                let app_handle = app.handle().clone();
                 unsafe {
                     PlatformUsbDriver::on_device_connected(
                         RAZER_USB_VENDOR_ID, 
                         RAZER_BASILISK_V3_PRO_ID, 
-                        |_device| {
-                            log::info!("USB dongle connected - applying default settings");
-                            apply_default_settings();
+                        move |_device| {
+                            log::info!("USB dongle connected - applying saved settings");
+                            let handle = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                if let Ok(settings) = get_saved_settings(handle) {
+                                    unsafe { apply_saved_settings(&settings); }
+                                }
+                            });
                         }
                     ).expect("Failed to register connection hook");
 
@@ -147,13 +162,14 @@ pub fn create_app() -> Application {
                         RAZER_BASILISK_V3_PRO_ID, 
                         |_device| {
                             log::info!("USB dongle disconnected - reverting trackpad settings");
-                            set_mouse_wheel_inverted(true);
+                            let _ = driver::PlatformPreferencesDriver::set_mouse_wheel_inverted(true);
                         }
                     ).expect("Failed to register disconnection hook");
                 }
                 
                 // Start polling thread to detect wireless mouse power state changes
-                std::thread::spawn(|| {
+                let app_handle = app.handle().clone();
+                std::thread::spawn(move || {
                     use std::sync::atomic::{AtomicBool, Ordering};
                     use std::time::Duration;
                     
@@ -169,12 +185,28 @@ pub fn create_app() -> Application {
                             LAST_STATE.store(is_alive, Ordering::Relaxed);
                             
                             if is_alive {
-                                log::info!("Mouse powered ON - applying settings");
-                                unsafe { apply_default_settings(); }
+                                log::info!("Mouse powered ON - applying saved settings");
+                                let handle = app_handle.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    if let Ok(settings) = get_saved_settings(handle) {
+                                        unsafe { apply_saved_settings(&settings); }
+                                    }
+                                });
                             } else {
                                 log::info!("Mouse powered OFF - reverting trackpad settings");
-                                set_mouse_wheel_inverted(true);
+                                let _ = driver::PlatformPreferencesDriver::set_mouse_wheel_inverted(true);
                             }
+                        }
+                    }
+                });
+
+                // Initial apply if mouse is already connected
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    if unsafe { mouse::is_mouse_alive() } {
+                        log::info!("Mouse already connected - applying saved settings");
+                        if let Ok(settings) = get_saved_settings(app_handle) {
+                            unsafe { apply_saved_settings(&settings); }
                         }
                     }
                 });

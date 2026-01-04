@@ -96,7 +96,9 @@ pub unsafe fn set_backlight(brightness: u8) -> Result<(), String> {
 pub unsafe fn set_backlight_with_handle(usb_handle: &mut driver::PlatformUsbDriver, brightness: u8) -> Result<(), String> {
     let mut set_brightness_report = RazerReport::set_matrix_brightness_report(brightness);
     get_data_for_razer_report(usb_handle, 0x00, &mut set_brightness_report)?;
-    log::debug!("Backlight set to {}%", brightness);
+    let msg = format!("Backlight brightness successfully set to {}%", brightness);
+    log::info!("{}", msg);
+    println!("{}", msg);
     Ok(())
 }
 
@@ -122,9 +124,11 @@ pub unsafe fn set_polling_rate(polling_rate: u16) -> Result<(), String> {
 }
 
 pub unsafe fn set_polling_rate_with_handle(usb_handle: &mut driver::PlatformUsbDriver, polling_rate: u16) -> Result<(), String> {
-    let mut set_poll_rate_report = RazerReport::set_poll_rate_report(polling_rate);
+    let mut set_poll_rate_report = RazerReport::set_poll_rate_report(polling_rate)?;
     get_data_for_razer_report(usb_handle, 0x00, &mut set_poll_rate_report)?;
-    log::debug!("Polling rate set to {}Hz", polling_rate);
+    let msg = format!("Polling rate successfully set to {}Hz", polling_rate);
+    log::info!("{}", msg);
+    println!("{}", msg);
     Ok(())
 }
 
@@ -154,7 +158,9 @@ pub unsafe fn set_dpi_xy(dpi_x: u16, dpi_y: u16) -> Result<(), String> {
 pub unsafe fn set_dpi_xy_with_handle(usb_handle: &mut driver::PlatformUsbDriver, dpi_x: u16, dpi_y: u16) -> Result<(), String> {
     let mut set_dpi_report = RazerReport::set_dpi_xy_report(dpi_x, dpi_y);
     get_data_for_razer_report(usb_handle, 0x00, &mut set_dpi_report)?;
-    log::debug!("DPI set to {}x{}", dpi_x, dpi_y);
+    let msg = format!("DPI successfully set to {}x{}", dpi_x, dpi_y);
+    log::info!("{}", msg);
+    println!("{}", msg);
     Ok(())
 }
 
@@ -168,7 +174,9 @@ pub unsafe fn set_matrix_backlight_static(rgb: [u8; 3]) -> Result<(), String> {
 pub unsafe fn set_matrix_backlight_static_with_handle(usb_handle: &mut driver::PlatformUsbDriver, rgb: [u8; 3]) -> Result<(), String> {
     let mut set_static_report = RazerReport::set_matrix_effect_static_report(rgb, Some(ZERO_LED));
     get_data_for_razer_report(usb_handle, 0x00, &mut set_static_report)?;
-    log::debug!("Matrix backlight set to static");
+    let msg = format!("Matrix backlight successfully set to static RGB: [{}, {}, {}]", rgb[0], rgb[1], rgb[2]);
+    log::info!("{}", msg);
+    println!("{}", msg);
     Ok(())
 }
 
@@ -303,5 +311,8 @@ pub unsafe fn set_dpi_stages_with_handle(usb_handle: &mut driver::PlatformUsbDri
     let mut set_dpi_stages_report = RazerReport::set_dpi_stages_report(active_dpi_stage, dpi_stages);
     get_data_for_razer_report(usb_handle, 0x00, &mut set_dpi_stages_report)?;
     
+    let msg = format!("DPI stages successfully updated (Active Stage: {})", active_dpi_stage);
+    log::info!("{}", msg);
+    println!("{}", msg);
     Ok(())
 }

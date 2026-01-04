@@ -1,21 +1,29 @@
 use driver::{PlatformUsbDriver, UsbDriver, PreferencesDriver, PlatformPreferencesDriver};
-use razer::{RAZER_BASILISK_V3_PRO_ID, RAZER_USB_VENDOR_ID};
+use razer::{RAZER_BASILISK_V3_PRO_ID, RAZER_USB_VENDOR_ID, ZERO_LED};
 use crate::mouse::{
     get_battery_status, get_battery_status_with_handle,
-    get_polling_rate, get_polling_rate_with_handle,
+    get_polling_rate_with_handle,
     set_backlight, set_backlight_with_handle,
     set_polling_rate, set_polling_rate_with_handle,
-    get_dpi_xy, get_dpi_xy_with_handle,
+    get_dpi_xy_with_handle,
     set_matrix_backlight_static, set_matrix_backlight_static_with_handle,
     set_dpi_xy, set_dpi_xy_with_handle,
     get_led_rgb, get_led_rgb_with_handle,
     get_backlight, get_backlight_with_handle,
     get_dpi_stages, get_dpi_stages_with_handle,
-    set_dpi_stages,
-    is_mouse_alive
+    set_dpi_stages, set_dpi_stages_with_handle,
 };
-use crate::types::DpiStage;
+use driver::settings::{MouseSettings, DpiStage};
 use log::{info, error};
+use tauri::{AppHandle, Manager};
+use std::path::PathBuf;
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+struct RgbColor {
+    r: u8,
+    g: u8,
+    b: u8,
+}
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -24,8 +32,8 @@ struct DeviceInfo {
     polling_rate: u16,
     dpi_xy: [u16; 2],
     backlight_brightness: u8,
-    backlight_color: [u8; 3],
-    matrix_behaviour: String,
+    backlight_color: RgbColor,
+    matrix_behavior: String,
     target_os: String,
     smart_wheel_enabled: bool,
     mouse_wheel_inverted: bool,
@@ -43,7 +51,7 @@ pub unsafe fn ensure_mouse_exists() -> bool {
 }
 
 #[tauri::command]
-pub fn get_device_information() -> Option<String> {
+pub fn get_device_information(app: AppHandle) -> Option<String> {
     unsafe {
         let mut usb_handle = match PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID) {
             Ok(h) => h,
@@ -51,17 +59,9 @@ pub fn get_device_information() -> Option<String> {
         };
 
         let battery_status = get_battery_status_with_handle(&mut usb_handle).unwrap_or(0);
-        let polling_rate = get_polling_rate_with_handle(&mut usb_handle).unwrap_or(0);
-        let (dpi_x, dpi_y) = get_dpi_xy_with_handle(&mut usb_handle).unwrap_or((0, 0));
-        let backlight_brightness = get_backlight_with_handle(&mut usb_handle).unwrap_or(0);
-        let backlight_color = get_led_rgb_with_handle(&mut usb_handle).unwrap_or([0, 0, 0]);
-
-        let mouse_wheel_inverted = PlatformPreferencesDriver::is_mouse_wheel_inverted().unwrap_or(false);
-
-        let dpi_stages = get_dpi_stages_with_handle(&mut usb_handle).unwrap_or_default();
-
-        let matrix_behaviour = "static"; 
-        let smart_wheel_enabled = false; 
+        
+        // Load saved settings to ensure UI is in sync with persistent state
+        let settings = get_saved_settings(app).unwrap_or_default();
 
         let target_os = get_target_os();
 
@@ -69,19 +69,36 @@ pub fn get_device_information() -> Option<String> {
 
         let device_info = DeviceInfo {
             battery_level: battery_status,
-            polling_rate,
-            dpi_xy: [dpi_x, dpi_y],
-            backlight_brightness,
-            backlight_color,
-            matrix_behaviour: matrix_behaviour.to_string(),
+            polling_rate: settings.polling_rate,
+            dpi_xy: [settings.dpi_x, settings.dpi_y],
+            backlight_brightness: settings.brightness,
+            backlight_color: RgbColor {
+                r: settings.rgb_color[0],
+                g: settings.rgb_color[1],
+                b: settings.rgb_color[2],
+            },
+            matrix_behavior: "static".to_string(), 
             target_os,
-            smart_wheel_enabled,
-            mouse_wheel_inverted,
-            dpi_stages,
+            smart_wheel_enabled: settings.smart_wheel_enabled,
+            mouse_wheel_inverted: settings.scroll_inverted,
+            dpi_stages: settings.dpi_stages,
         };
 
         Some(serde_json::to_string(&device_info).unwrap())
     }
+}
+
+#[tauri::command]
+pub fn set_device_smart_wheel(app: AppHandle, enabled: bool) -> Result<(), String> {
+    // Note: Implementation of hardware protocol for smart wheel is pending
+    // For now, we persist the setting so the UI remains consistent
+    let res = update_settings(app, |s| s.smart_wheel_enabled = enabled);
+    if res.is_ok() {
+        let msg = format!("Smart Wheel setting successfully {} (Persistence only)", if enabled { "enabled" } else { "disabled" });
+        log::info!("{}", msg);
+        println!("{}", msg);
+    }
+    res
 }
 
 #[tauri::command]
@@ -92,17 +109,22 @@ pub fn get_device_battery_status() -> Result<u8, String> {
 }
 
 #[tauri::command]
-pub fn set_device_dpi(dpi_x: u16, dpi_y: u16) -> Result<(), String> {
+pub fn set_device_dpi(app: AppHandle, dpi_x: u16, dpi_y: u16) -> Result<(), String> {
     unsafe {
-        set_dpi_xy(dpi_x, dpi_y)
+        set_dpi_xy(dpi_x, dpi_y)?;
     }
+    update_settings(app, |s| {
+        s.dpi_x = dpi_x;
+        s.dpi_y = dpi_y;
+    })
 }
 
 #[tauri::command]
-pub fn set_device_backlight_brightness(brightness: u8) -> Result<(), String> {
+pub fn set_device_backlight_brightness(app: AppHandle, brightness: u8) -> Result<(), String> {
     unsafe {
-        set_backlight(brightness)
+        set_backlight(brightness)?;
     }
+    update_settings(app, |s| s.brightness = brightness)
 }
 
 #[tauri::command]
@@ -113,17 +135,19 @@ pub fn get_device_backlight_brightness() -> Result<u8, String> {
 }
 
 #[tauri::command]
-pub fn set_device_polling_rate(polling_rate: u16) -> Result<(), String> {
+pub fn set_device_polling_rate(app: AppHandle, polling_rate: u16) -> Result<(), String> {
     unsafe {
-        set_polling_rate(polling_rate)
+        set_polling_rate(polling_rate)?;
     }
+    update_settings(app, |s| s.polling_rate = polling_rate)
 }
 
 #[tauri::command]
-pub fn set_device_matrix_backlight_static(r: u8, g: u8, b: u8) -> Result<(), String> {
+pub fn set_device_matrix_backlight_static(app: AppHandle, r: u8, g: u8, b: u8) -> Result<(), String> {
     unsafe {
-        set_matrix_backlight_static([r, g, b])
+        set_matrix_backlight_static([r, g, b])?;
     }
+    update_settings(app, |s| s.rgb_color = [r, g, b])
 }
 
 #[tauri::command]
@@ -141,10 +165,11 @@ pub fn get_device_dpi_stages() -> Result<Vec<DpiStage>, String> {
 }
 
 #[tauri::command]
-pub fn set_device_dpi_stages(stages: Vec<DpiStage>) -> Result<(), String> {
+pub fn set_device_dpi_stages(app: AppHandle, stages: Vec<DpiStage>) -> Result<(), String> {
     unsafe {
-        set_dpi_stages(stages)
+        set_dpi_stages(stages.clone())?;
     }
+    update_settings(app, |s| s.dpi_stages = stages)
 }
 
 #[tauri::command]
@@ -163,12 +188,47 @@ pub fn get_target_os() -> String {
 }
 
 #[tauri::command]
-pub fn set_mouse_wheel_inverted(inverted: bool) {
-    PlatformPreferencesDriver::set_mouse_wheel_inverted(inverted).unwrap()
+pub fn set_mouse_wheel_inverted(app: AppHandle, inverted: bool) -> Result<(), String> {
+    PlatformPreferencesDriver::set_mouse_wheel_inverted(inverted)?;
+    let res = update_settings(app, |s| s.scroll_inverted = inverted);
+    if res.is_ok() {
+        let msg = format!("Mouse wheel inversion successfully {} (System preference applied)", if inverted { "enabled" } else { "disabled" });
+        log::info!("{}", msg);
+        println!("{}", msg);
+    }
+    res
 }
 
-pub unsafe fn apply_default_settings() {
-    info!("Applying default settings to device...");
+fn update_settings<F>(app: AppHandle, updater: F) -> Result<(), String> 
+where F: FnOnce(&mut MouseSettings) {
+    let path = get_settings_path(&app)?;
+    let mut settings = MouseSettings::load(&path)?;
+    updater(&mut settings);
+    settings.save(&path)
+}
+
+fn get_settings_path(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|path| path.join("settings.json"))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_saved_settings(app: AppHandle) -> Result<MouseSettings, String> {
+    let path = get_settings_path(&app)?;
+    MouseSettings::load(&path)
+}
+
+#[tauri::command]
+pub fn save_settings(app: AppHandle, settings: MouseSettings) -> Result<(), String> {
+    let path = get_settings_path(&app)?;
+    settings.save(&path)
+}
+
+pub unsafe fn apply_saved_settings(settings: &MouseSettings) {
+    info!("Applying saved settings to device: {:?}", settings);
+    println!("Applying saved settings to device: {:?}", settings);
     
     let mut usb_handle = match PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID) {
         Ok(h) => h,
@@ -178,17 +238,20 @@ pub unsafe fn apply_default_settings() {
         }
     };
 
-    // Use placeholders for default settings.
-    let default_dpi = 3200;
-    let default_polling_rate = 1000;
-    let default_rgb = [255, 255, 255]; // White
-
-    let _ = set_dpi_xy_with_handle(&mut usb_handle, default_dpi, default_dpi);
-    let _ = set_polling_rate_with_handle(&mut usb_handle, default_polling_rate);
-    let _ = set_matrix_backlight_static_with_handle(&mut usb_handle, default_rgb);
+    let _ = set_dpi_xy_with_handle(&mut usb_handle, settings.dpi_x, settings.dpi_y);
+    let _ = set_polling_rate_with_handle(&mut usb_handle, settings.polling_rate);
+    let _ = set_matrix_backlight_static_with_handle(&mut usb_handle, settings.rgb_color);
+    let _ = set_backlight_with_handle(&mut usb_handle, settings.brightness);
+    let _ = set_dpi_stages_with_handle(&mut usb_handle, settings.dpi_stages.clone());
     
     drop(usb_handle);
 
-    // Ensure mouse wheel is NOT inverted for the gaming mouse
-    set_mouse_wheel_inverted(false);
+    // Ensure mouse wheel inversion is applied if supported/requested
+    let _ = PlatformPreferencesDriver::set_mouse_wheel_inverted(settings.scroll_inverted);
+}
+
+pub unsafe fn apply_default_settings() {
+    info!("Applying default settings...");
+    println!("Applying default settings...");
+    apply_saved_settings(&MouseSettings::default());
 }

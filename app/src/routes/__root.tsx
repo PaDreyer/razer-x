@@ -1,13 +1,13 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import "../App.css";
-import {Toaster} from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
 import {
     DeviceManagerProvider,
     IDeviceInformation,
     PossiblePollingRates
 } from "../components/device-manager";
-import {invoke} from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 
 export const Route = createRootRoute({
     component: () => (
@@ -26,14 +26,15 @@ export const Route = createRootRoute({
                 },
                 async setSmartWheelEnabled(enabled: boolean): Promise<void> {
                     console.log(`Setting smart wheel enabled to ${enabled}`);
+                    return invoke('set_device_smart_wheel', { enabled });
                 },
                 async setPollingRate(pollingRate: PossiblePollingRates): Promise<void> {
                     console.log(`Setting polling rate to ${pollingRate} Hz`);
-                    return invoke('set_device_polling_rate', { polling_rate: pollingRate });
+                    return invoke('set_device_polling_rate', { pollingRate });
                 },
                 async setDpiXY(dpiX: number, dpiY: number): Promise<void> {
                     console.log(`Setting DPI to X: ${dpiX}, Y: ${dpiY}`);
-                    return invoke('set_device_dpi', { dpi_x: dpiX, dpi_: dpiY });
+                    return invoke('set_device_dpi', { dpiX, dpiY });
                 },
                 async getBatteryLevel(): Promise<number> {
                     console.log("Fetching battery level");
@@ -49,7 +50,7 @@ export const Route = createRootRoute({
                 },
                 async getDpiStages(): Promise<Array<{ dpiX: number; dpiY: number; stage: number; active: number }>> {
                     console.log('Fetching dpi stages');
-                    return invoke("get_dpi_stages");
+                    return invoke("get_device_dpi_stages");
                 },
                 async setDpiStages(stages: Array<{ dpiX: number; dpiY: number; stage: number; active: number }>): Promise<void> {
                     console.log('Setting DPI stages:', stages);
@@ -60,7 +61,7 @@ export const Route = createRootRoute({
                         active: stage.active
                     }));
 
-                    return invoke("set_dpi_stages", { stages: mappedStages });
+                    return invoke("set_device_dpi_stages", { stages: mappedStages });
                 },
                 async getDeviceInformation(): Promise<IDeviceInformation> {
                     const result = await invoke<string>('get_device_information');

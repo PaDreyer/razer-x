@@ -191,16 +191,16 @@ impl RazerReport {
     * 500  = 0x02 (50Hz)
     * 125  = 0x08
     */
-    pub fn set_poll_rate_report(polling_rate: u16) -> Self {
+    pub fn set_poll_rate_report(polling_rate: u16) -> Result<Self, String> {
         let mut arguments = [0u8; 80];
         arguments[0] = match polling_rate {
             1000 => 0x01,
             500 => 0x02,
             125 => 0x08,
-            _ => panic!("Invalid polling rate. Must be 1000, 500 or 125"),
+            _ => return Err(format!("Invalid polling rate: {}. Must be 1000, 500 or 125", polling_rate)),
         };
 
-        Self {
+        Ok(Self {
             status: 0x00,
             transaction_id: TransactionId(0x1f),
             remaining_packets: 0x00,
@@ -211,7 +211,7 @@ impl RazerReport {
             arguments,
             crc: 0x00,
             reserved: 0x00,
-        }
+        })
     }
 
     // https://github.com/openrazer/openrazer/blob/master/driver/razermouse_driver.c#L2055
@@ -462,7 +462,7 @@ impl RazerReport {
     pub fn set_dpi_stages_report(active_stage: u8, dpi_stages: Vec<DpiStage>) -> Self {
         let stages_count = dpi_stages.len();
         assert!(
-            stages_count < RAZER_MOUSE_MAX_DPI_STAGES as usize,
+            stages_count <= RAZER_MOUSE_MAX_DPI_STAGES as usize,
             "Too many DPI stages, max is {}",
             RAZER_MOUSE_MAX_DPI_STAGES
         );
