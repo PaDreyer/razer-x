@@ -1,6 +1,6 @@
-import {DpiSlider} from "../components/dpi-slider";
-import {useEffect, useMemo, useState} from "react";
-import {Checkbox} from "../components/checkbox";
+import { DpiSlider } from "../components/dpi-slider";
+import { useEffect, useMemo, useState } from "react";
+import { Checkbox } from "../components/checkbox";
 
 
 const defaultDpiState: Record<string, { x: number; y: number; }> = {
@@ -12,9 +12,9 @@ const defaultDpiState: Record<string, { x: number; y: number; }> = {
 }
 
 export const DpiSettings = () => {
-    const [ useDpiStages, toggleDpiStages ] = useState(false);
-    const [ activeDpiStage, setActiveDpiStage ] = useState("3");
-    const [ dpiStageValues, setDpiStageValues ] = useState<{ [key: string]: { x: number; y: number; } }>({
+    const [useDpiStages, toggleDpiStages] = useState(false);
+    const [activeDpiStage, setActiveDpiStage] = useState("3");
+    const [dpiStageValues, setDpiStageValues] = useState<{ [key: string]: { x: number; y: number; } }>({
         "1": defaultDpiState["1"],
         "2": defaultDpiState["2"],
         "3": defaultDpiState["3"],
@@ -22,7 +22,7 @@ export const DpiSettings = () => {
         "5": defaultDpiState["5"],
     });
     const dpiStages = useMemo(() => useDpiStages ? ["1", "2", "3", "4", "5"] : [activeDpiStage], [useDpiStages, activeDpiStage]);
-    const [ individualXYStates, setIndividualXYStates ] = useState<{ [key: string]: boolean }>({
+    const [individualXYStates, setIndividualXYStates] = useState<{ [key: string]: boolean }>({
         "1": false,
         "2": false,
         "3": false,
@@ -41,7 +41,7 @@ export const DpiSettings = () => {
                 Adjust the DPI settings for your device. This will affect the sensitivity of your mouse or touchpad.
             </p>
             */ }
-            <span className="text-gray-400 text-sm mb-2">Aktuelle DPI Stufe: { activeDpiStage }</span>
+            <span className="text-gray-400 text-sm mb-2">Aktuelle DPI Stufe: {activeDpiStage}</span>
             <Checkbox
                 checked={useDpiStages}
                 onChange={() => toggleDpiStages(!useDpiStages)}
@@ -55,7 +55,7 @@ export const DpiSettings = () => {
                                 <div className={`flex items-center justify-center border bg-gray-700 text-gray-900 hover:text-white font-semibold shadow rounded-full w-12 h-12 ${stage === activeDpiStage ? "border-white text-white cursor-default" : "border-gray-700 hover:scale-110 cursor-pointer"}`}
                                     onClick={() => setActiveDpiStage(stage)}
                                 >
-                                    <div className="flex text-4xl font-bold select-none">
+                                    <div className="text-4xl font-bold select-none leading-none">
                                         {stage}
                                     </div>
                                 </div>
@@ -71,10 +71,10 @@ export const DpiSettings = () => {
                                             max={35000}
                                             onChange={(value) => setDpiStageValues(prevState => ({
                                                 ...prevState,
-                                                    [stage]: {
-                                                        x: individualXYStates[stage] ? value.x : value.y,
-                                                        y: individualXYStates[stage] ? value.y : value.x
-                                                    }
+                                                [stage]: {
+                                                    x: individualXYStates[stage] ? value.x : value.y,
+                                                    y: individualXYStates[stage] ? value.y : value.x
+                                                }
                                             }))}
                                         />
                                     </div>
