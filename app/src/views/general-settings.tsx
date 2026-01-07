@@ -35,7 +35,7 @@ export const GeneralSettings = memo(function GeneralSettings() {
             {isMacOs &&
                 <div>
                     <Checkbox
-                        label={"Natürliches Scrollen (macOS)"}
+                        label={"Natürliches Scrollen"}
                         checked={mouseWheelInverted}
                         onChange={(checked) => setMouseWheelInverted(checked)}
                     />
