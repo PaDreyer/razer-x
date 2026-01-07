@@ -67,6 +67,13 @@ pub fn get_device_information(app: AppHandle) -> Option<String> {
 
         drop(usb_handle);
 
+        // Check if natural scrolling (mouse wheel inversion) state is in sync with OS preference
+        let current_os_inverted = PlatformPreferencesDriver::is_mouse_wheel_inverted().unwrap_or(settings.scroll_inverted);
+        if current_os_inverted != settings.scroll_inverted {
+            log::info!("Syncing natural scrolling state: OS={} -> Saved={}", current_os_inverted, settings.scroll_inverted);
+            let _ = PlatformPreferencesDriver::set_mouse_wheel_inverted(settings.scroll_inverted);
+        }
+
         let device_info = DeviceInfo {
             battery_level: battery_status,
             polling_rate: settings.polling_rate,
