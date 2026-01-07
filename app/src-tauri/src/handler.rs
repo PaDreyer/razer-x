@@ -239,10 +239,10 @@ pub unsafe fn apply_saved_settings(settings: &MouseSettings) {
     };
 
     let _ = set_dpi_xy_with_handle(&mut usb_handle, settings.dpi_x, settings.dpi_y);
+    let _ = set_dpi_stages_with_handle(&mut usb_handle, settings.dpi_stages.clone());
     let _ = set_polling_rate_with_handle(&mut usb_handle, settings.polling_rate);
     let _ = set_matrix_backlight_static_with_handle(&mut usb_handle, settings.rgb_color);
     let _ = set_backlight_with_handle(&mut usb_handle, settings.brightness);
-    let _ = set_dpi_stages_with_handle(&mut usb_handle, settings.dpi_stages.clone());
     
     drop(usb_handle);
 

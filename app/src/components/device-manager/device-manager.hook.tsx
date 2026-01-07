@@ -13,10 +13,12 @@ export const useDeviceManager = () => {
         isInitialized,
         setBacklightBrightness,
         setBacklightColor,
-        setDpiXY,
+        setDpiXy,
         setPollingRate,
         setMouseWheelInverted,
-        setSmartWheelEnabled
+        setSmartWheelEnabled,
+        getDpiStages,
+        setDpiStages,
     } = useContext(DeviceManagerContext);
 
     return {
@@ -26,9 +28,11 @@ export const useDeviceManager = () => {
         isInitialized,
         setBacklightBrightness,
         setBacklightColor,
-        setDpiXY,
+        setDpiXy,
         setPollingRate,
         setMouseWheelInverted,
         setSmartWheelEnabled,
+        getDpiStages,
+        setDpiStages,
     }
 }

@@ -15,7 +15,7 @@ export type UseDeviceManagerProps = {};
  */
 export function useDeviceManager(_: UseDeviceManagerProps) {
     const [pollingRate, setPollingRate] = useState<PossiblePollingRates | undefined>();
-    const [dpiXY, setDpiXY] = useState<[number, number] | undefined>();
+    const [dpiXy, setDpiXy] = useState<[number, number] | undefined>();
     const [batteryLevel, setBatteryLevel] = useState<number | undefined>();
     const [backlightBrightness, setBacklightBrightness] = useState<number | undefined>();
     const [backlightColor, setBacklightColor] = useState<RGBColor | undefined>();
@@ -57,7 +57,7 @@ export function useDeviceManager(_: UseDeviceManagerProps) {
     }
 
     useSyncEffect(pollingRate, "set_device_polling_rate", v => ({ polling_rate: v }));
-    useSyncEffect(dpiXY, "set_device_dpi", ([x, y]) => ({ dpi_x: x, dpi_y: y }));
+    useSyncEffect(dpiXy, "set_device_dpi", ([x, y]) => ({ dpi_x: x, dpi_y: y }));
     useSyncEffect(backlightBrightness, "set_device_backlight_brightness", v => ({ brightness: v }));
     useSyncEffect(backlightColor, "set_device_backlight_color", v => ({ color: v }));
     useSyncEffect(matrixBehavior, "set_device_matrix_behavior", v => ({ behavior: v }));
@@ -69,7 +69,7 @@ export function useDeviceManager(_: UseDeviceManagerProps) {
             try {
                 const { polling_rate, dpi_xy, battery_level } = JSON.parse(rawData);
                 setPollingRate(polling_rate);
-                setDpiXY(dpi_xy);
+                setDpiXy(dpi_xy);
                 setBatteryLevel(battery_level);
             } catch (e) {
                 setIsError(true);
@@ -81,7 +81,7 @@ export function useDeviceManager(_: UseDeviceManagerProps) {
 
     return {
         pollingRate, setPollingRate,
-        dpiXY, setDpiXY,
+        dpiXy, setDpiXy,
         batteryLevel,
         backlightBrightness, setBacklightBrightness,
         backlightColor, setBacklightColor,

@@ -1,5 +1,5 @@
-import {SliderComponentHandle, SliderComponentProps, SliderExtended} from "../slider-extended";
-import {memo, useCallback, useEffect, useRef, useState} from "react";
+import { SliderComponentHandle, SliderComponentProps, SliderExtended } from "../slider-extended";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 export type DpiSliderBaseComponentProps = {
     individualXY?: boolean; // Optional prop to toggle individual x and y DPI settings
@@ -9,59 +9,66 @@ export type DpiSliderBaseComponentProps = {
 
 export type DpiSliderComponentProps = DpiSliderBaseComponentProps & Omit<SliderComponentProps, "onChange" | "initialValue">;
 
-// Optionally set x and y via toggle in props, otherwise set x and y to the same value
-// Also forward props to the SliderExtended component if needed
-// Also forward ref to the SliderExtended component if needed
+/**
+ * Optionally set x and y via toggle in props, otherwise set x and y to the same value
+ * Also forward props to the SliderExtended component if needed
+ */
 export const DpiSlider = memo(function DpiSlider(props: DpiSliderComponentProps) {
     const { individualXY, initialDpiState, onChange: propsOnChange, ...sliderProps } = props;
     const ySlider = useRef<SliderComponentHandle>(null);
+    const xSlider = useRef<SliderComponentHandle>(null);
     const [dpiState, setDpiState] = useState({
-        x: props.initialDpiState?.x ?? 16000,
-        y: props.initialDpiState?.y ?? 16000,
+        x: props.initialDpiState?.x ?? 1600,
+        y: props.initialDpiState?.y ?? 1600,
     });
 
-    const onChange = useCallback((x: number, y: number) => {
-        setDpiState({ x, y});
-        propsOnChange?.({ x, y});
-    }, [setDpiState, propsOnChange]);
-
+    // Sync internal state with props (e.g. when hardware settings are loaded or changed elsewhere)
     useEffect(() => {
-        if (individualXY === false && dpiState?.x !== undefined) {
-            if (initialDpiState?.y !== dpiState.x) {
-                ySlider.current?.setValueExtern(dpiState.x, true)
-            }
+        if (props.initialDpiState) {
+            setDpiState(props.initialDpiState);
+            xSlider.current?.setValueOnly(props.initialDpiState.x);
+            ySlider.current?.setValueOnly(props.initialDpiState.y);
         }
-    }, [individualXY, dpiState]);
+    }, [props.initialDpiState?.x, props.initialDpiState?.y]);
+
+    const handleXChange = useCallback((x: number) => {
+        setDpiState(prev => {
+            const nextY = individualXY ? prev.y : x;
+            if (!individualXY) {
+                // Update Y slider UI only, without triggering hardware onChange
+                ySlider.current?.setValueOnly(x);
+            }
+            propsOnChange?.({ x, y: nextY });
+            return { x, y: nextY };
+        });
+    }, [individualXY, propsOnChange]);
+
+    const handleYChange = useCallback((y: number) => {
+        setDpiState(prev => {
+            propsOnChange?.({ x: prev.x, y });
+            return { ...prev, y };
+        });
+    }, [propsOnChange]);
 
     return (
         <div className="w-full flex flex-col gap-2 p-4 px-6 mb-2">
-
             <div className="w-full flex flex-row gap-4 items-center">
-                <p className="select-none cursor-default">{ individualXY ? `DPI X`: `DPI X/Y`}</p>
+                <p className="select-none cursor-default w-20">{individualXY ? `DPI X` : `DPI X/Y`}</p>
                 <SliderExtended
-                    initialValue={dpiState?.x}
+                    ref={xSlider}
+                    initialValue={dpiState.x}
                     {...sliderProps}
-                    onChange={value => {
-                        onChange(value, props.individualXY ? dpiState.y : value);
-
-                        // If individualXY is false, set the ySlider to the same value
-                        // This allows for a single slider to control both x and y DPI
-                        // Causes another render (ySlider.onChange is called -> onChange again with the same values)... but it works
-                        // And is required to keep the ySlider in sync with the xSlider
-                        if (!props.individualXY) {
-                            ySlider.current?.setValueExtern(value, true);
-                        }
-                    }}
+                    onChange={handleXChange}
                 />
             </div>
 
-            <div className={`w-full flex flex-row gap-4 items-center ${props.individualXY ? '' : 'hidden'}`}>
-                <p className="select-none cursor-default">DPI Y</p>
+            <div className={`w-full flex flex-row gap-4 items-center ${individualXY ? '' : 'hidden'}`}>
+                <p className="select-none cursor-default w-20">DPI Y</p>
                 <SliderExtended
                     ref={ySlider}
-                    initialValue={dpiState?.y}
+                    initialValue={dpiState.y}
                     {...sliderProps}
-                    onChange={value => onChange(dpiState.x, value)}
+                    onChange={handleYChange}
                 />
             </div>
         </div>

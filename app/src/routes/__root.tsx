@@ -32,7 +32,7 @@ export const Route = createRootRoute({
                     console.log(`Setting polling rate to ${pollingRate} Hz`);
                     return invoke('set_device_polling_rate', { pollingRate });
                 },
-                async setDpiXY(dpiX: number, dpiY: number): Promise<void> {
+                async setDpiXy(dpiX: number, dpiY: number): Promise<void> {
                     console.log(`Setting DPI to X: ${dpiX}, Y: ${dpiY}`);
                     return invoke('set_device_dpi', { dpiX, dpiY });
                 },
