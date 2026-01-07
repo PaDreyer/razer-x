@@ -4,6 +4,9 @@ mod mouse;
 
 use tauri::Manager;
 use tauri::path::BaseDirectory;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+struct IsQuitting(AtomicBool);
 use handler::{
     get_device_information,
     set_device_backlight_brightness,
@@ -41,7 +44,9 @@ impl Application {
     pub fn run(self) -> !  {
         self.app.run(|app, event| match event {
             tauri::RunEvent::ExitRequested { api, .. } => {
-                api.prevent_exit();
+                if !app.state::<IsQuitting>().0.load(Ordering::SeqCst) {
+                    api.prevent_exit();
+                }
             }
             tauri::RunEvent::Reopen { has_visible_windows , .. } => {
                 let window = app.get_webview_window("main").unwrap();
@@ -61,6 +66,7 @@ pub fn create_app() -> Application {
     Application::new(
         tauri::Builder::default()
             .plugin(tauri_plugin_opener::init())
+            .manage(IsQuitting(AtomicBool::new(false)))
             .invoke_handler(tauri::generate_handler![
                 get_device_information,
                 set_device_matrix_backlight_static,
@@ -79,14 +85,7 @@ pub fn create_app() -> Application {
                 save_settings,])
             .on_window_event(|window, event| match event {
                 tauri::WindowEvent::CloseRequested { api, .. } => {
-                    #[cfg(not(target_os = "macos"))] {
-                        event.window().hide().unwrap();
-                    }
-
-                    #[cfg(target_os = "macos")] {
-                        window.hide().unwrap();
-                        //tauri::AppHandle::manager().get_window("main").unwrap().minimize().unwrap();
-                    }
+                    window.hide().unwrap();
                     api.prevent_close();
                 }
                 _ => {}
@@ -133,6 +132,7 @@ pub fn create_app() -> Application {
                                 });
                             }
                             "quit" => {
+                                app.state::<IsQuitting>().0.store(true, Ordering::SeqCst);
                                 app.exit(0);
                             }
                             _ => {}
