@@ -103,9 +103,9 @@ pub fn create_app() -> Application {
                 let separator = tauri::menu::PredefinedMenuItem::separator(app)?;
                 let about = tauri::menu::PredefinedMenuItem::about(
                     app,
-                    Some("About Razer-X"),
+                    Some("About Basilisk4All"),
                     Some(tauri::menu::AboutMetadata {
-                        name: Some("Razer-X".to_string()),
+                        name: Some("Basilisk4All".to_string()),
                         copyright: Some("Copyright PLDreyer".to_string()),
                         ..Default::default()
                     }),
@@ -120,7 +120,7 @@ pub fn create_app() -> Application {
                 ])?;
 
                 let _tray = tauri::tray::TrayIconBuilder::new()
-                    .icon(app.default_window_icon().unwrap().clone())
+                    .icon(tauri::image::Image::from_path(app.path().resolve("icons/TrayIcon.ico", BaseDirectory::Resource)?)?)
                     .menu(&menu)
                     .on_menu_event(|app, event| {
                         match event.id.as_ref() {

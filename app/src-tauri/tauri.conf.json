@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ui",
+  "productName": "Basilisk4All",
   "version": "0.1.0",
-  "identifier": "com.pdreyer.ui",
+  "identifier": "com.pdreyer.Basilisk4All",
   "build": {
     "beforeDevCommand": "yarn dev",
     "devUrl": "http://localhost:1420",
@@ -12,10 +12,10 @@
   "app": {
     "windows": [
       {
-        "title": "Razer-X",
+        "title": "Basilisk4All",
         "width": 1000,
         "height": 820,
-        "resizable": true
+        "resizable": false
       }
     ],
     "security": {
@@ -26,14 +26,16 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "supported_devices/*.json"
+      "supported_devices/*.json",
+      "icons/TrayIcon.ico"
     ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
-      "icons/icon.ico"
+      "icons/icon.ico",
+      "icons/TrayIcon.ico"
     ]
   }
 }
