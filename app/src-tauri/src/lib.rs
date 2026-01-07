@@ -66,6 +66,13 @@ pub fn create_app() -> Application {
     Application::new(
         tauri::Builder::default()
             .plugin(tauri_plugin_opener::init())
+            .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+                let _ = app.get_webview_window("main")
+                    .map(|w| {
+                        let _ = w.show();
+                        let _ = w.set_focus();
+                    });
+            }))
             .manage(IsQuitting(AtomicBool::new(false)))
             .invoke_handler(tauri::generate_handler![
                 get_device_information,
