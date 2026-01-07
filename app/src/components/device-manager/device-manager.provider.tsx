@@ -131,12 +131,24 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
         }
     }, []);
 
-    // Update battery level periodically
+    // Update device information periodically
     useEffect(() => {
-        //const intervalTimer = setInterval(updateBatteryLevel, 5000);
+        let intervalTimer: ReturnType<typeof setInterval> | null = null;
 
-        //return () => clearTimeout(intervalTimer);
-    }, [])
+        if (isInitialized) {
+            console.log("Starting device info polling (every 5 seconds)");
+            intervalTimer = setInterval(() => {
+                loadDeviceInformation().catch(console.error);
+            }, 5000);
+        }
+
+        return () => {
+            if (intervalTimer) {
+                console.log("Stopping device info polling");
+                clearInterval(intervalTimer);
+            }
+        };
+    }, [isInitialized, loadDeviceInformation]);
 
     const value: DeviceManagerContextState = {
         api: props.api,
