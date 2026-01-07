@@ -23,6 +23,7 @@
     }
   },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": "all",
     "resources": [
@@ -37,5 +38,14 @@
       "icons/icon.ico",
       "icons/TrayIcon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZDMEZDRDNEOEZGRDU4NTkKUldSWldQMlBQYzBQYkFQbnpyTm1yN1lkZXhzMmM5bkxyaStKOXRQNHNQSndtTmV4Sk8wR3dkMmwK",
+      "endpoints": [
+        "https://github.com/PaDreyer/razer-x/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

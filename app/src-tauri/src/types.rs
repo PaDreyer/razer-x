@@ -1,6 +1,5 @@
 pub use driver::settings::DpiStage;
 
-
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub enum DeviceType {
     Mouse,

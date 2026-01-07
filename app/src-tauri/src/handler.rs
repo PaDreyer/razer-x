@@ -1,22 +1,17 @@
-use driver::{PlatformUsbDriver, UsbDriver, PreferencesDriver, PlatformPreferencesDriver};
-use razer::{RAZER_BASILISK_V3_PRO_ID, RAZER_USB_VENDOR_ID, ZERO_LED};
 use crate::mouse::{
-    get_battery_status, get_battery_status_with_handle,
-    get_polling_rate_with_handle,
-    set_backlight, set_backlight_with_handle,
+    get_backlight, get_backlight_with_handle, get_battery_status, get_battery_status_with_handle,
+    get_dpi_stages, get_dpi_stages_with_handle, get_dpi_xy_with_handle, get_led_rgb,
+    get_led_rgb_with_handle, get_polling_rate_with_handle, set_backlight,
+    set_backlight_with_handle, set_dpi_stages, set_dpi_stages_with_handle, set_dpi_xy,
+    set_dpi_xy_with_handle, set_matrix_backlight_static, set_matrix_backlight_static_with_handle,
     set_polling_rate, set_polling_rate_with_handle,
-    get_dpi_xy_with_handle,
-    set_matrix_backlight_static, set_matrix_backlight_static_with_handle,
-    set_dpi_xy, set_dpi_xy_with_handle,
-    get_led_rgb, get_led_rgb_with_handle,
-    get_backlight, get_backlight_with_handle,
-    get_dpi_stages, get_dpi_stages_with_handle,
-    set_dpi_stages, set_dpi_stages_with_handle,
 };
-use driver::settings::{MouseSettings, DpiStage};
-use log::{info, error};
-use tauri::{AppHandle, Manager};
+use driver::settings::{DpiStage, MouseSettings};
+use driver::{PlatformPreferencesDriver, PlatformUsbDriver, PreferencesDriver, UsbDriver};
+use log::{error, info};
+use razer::{RAZER_BASILISK_V3_PRO_ID, RAZER_USB_VENDOR_ID, ZERO_LED};
 use std::path::PathBuf;
+use tauri::{AppHandle, Manager};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 struct RgbColor {
@@ -37,29 +32,31 @@ struct DeviceInfo {
     target_os: String,
     smart_wheel_enabled: bool,
     mouse_wheel_inverted: bool,
-    dpi_stages: Vec<DpiStage>
+    dpi_stages: Vec<DpiStage>,
 }
 
 pub unsafe fn ensure_mouse_exists() -> bool {
     let device_list = PlatformUsbDriver::list_devices();
 
     let razer_device = device_list.iter().find(|dev| {
-        dev.product_id == RAZER_BASILISK_V3_PRO_ID as u32 && dev.vendor_id == RAZER_USB_VENDOR_ID as u32
+        dev.product_id == RAZER_BASILISK_V3_PRO_ID as u32
+            && dev.vendor_id == RAZER_USB_VENDOR_ID as u32
     });
-    
+
     razer_device.is_some()
 }
 
 #[tauri::command]
 pub fn get_device_information(app: AppHandle) -> Option<String> {
     unsafe {
-        let mut usb_handle = match PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID) {
-            Ok(h) => h,
-            Err(_) => return None,
-        };
+        let mut usb_handle =
+            match PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID) {
+                Ok(h) => h,
+                Err(_) => return None,
+            };
 
         let battery_status = get_battery_status_with_handle(&mut usb_handle).unwrap_or(0);
-        
+
         // Load saved settings to ensure UI is in sync with persistent state
         let settings = get_saved_settings(app).unwrap_or_default();
 
@@ -68,9 +65,14 @@ pub fn get_device_information(app: AppHandle) -> Option<String> {
         drop(usb_handle);
 
         // Check if natural scrolling (mouse wheel inversion) state is in sync with OS preference
-        let current_os_inverted = PlatformPreferencesDriver::is_mouse_wheel_inverted().unwrap_or(settings.scroll_inverted);
+        let current_os_inverted = PlatformPreferencesDriver::is_mouse_wheel_inverted()
+            .unwrap_or(settings.scroll_inverted);
         if current_os_inverted != settings.scroll_inverted {
-            log::info!("Syncing natural scrolling state: OS={} -> Saved={}", current_os_inverted, settings.scroll_inverted);
+            log::info!(
+                "Syncing natural scrolling state: OS={} -> Saved={}",
+                current_os_inverted,
+                settings.scroll_inverted
+            );
             let _ = PlatformPreferencesDriver::set_mouse_wheel_inverted(settings.scroll_inverted);
         }
 
@@ -84,7 +86,7 @@ pub fn get_device_information(app: AppHandle) -> Option<String> {
                 g: settings.rgb_color[1],
                 b: settings.rgb_color[2],
             },
-            matrix_behavior: "static".to_string(), 
+            matrix_behavior: "static".to_string(),
             target_os,
             smart_wheel_enabled: settings.smart_wheel_enabled,
             mouse_wheel_inverted: settings.scroll_inverted,
@@ -101,7 +103,10 @@ pub fn set_device_smart_wheel(app: AppHandle, enabled: bool) -> Result<(), Strin
     // For now, we persist the setting so the UI remains consistent
     let res = update_settings(app, |s| s.smart_wheel_enabled = enabled);
     if res.is_ok() {
-        let msg = format!("Smart Wheel setting successfully {} (Persistence only)", if enabled { "enabled" } else { "disabled" });
+        let msg = format!(
+            "Smart Wheel setting successfully {} (Persistence only)",
+            if enabled { "enabled" } else { "disabled" }
+        );
         log::info!("{}", msg);
         println!("{}", msg);
     }
@@ -110,9 +115,7 @@ pub fn set_device_smart_wheel(app: AppHandle, enabled: bool) -> Result<(), Strin
 
 #[tauri::command]
 pub fn get_device_battery_status() -> Result<u8, String> {
-    unsafe {
-        get_battery_status()
-    }
+    unsafe { get_battery_status() }
 }
 
 #[tauri::command]
@@ -136,9 +139,7 @@ pub fn set_device_backlight_brightness(app: AppHandle, brightness: u8) -> Result
 
 #[tauri::command]
 pub fn get_device_backlight_brightness() -> Result<u8, String> {
-    unsafe {
-        get_backlight()
-    }
+    unsafe { get_backlight() }
 }
 
 #[tauri::command]
@@ -150,7 +151,12 @@ pub fn set_device_polling_rate(app: AppHandle, polling_rate: u16) -> Result<(), 
 }
 
 #[tauri::command]
-pub fn set_device_matrix_backlight_static(app: AppHandle, r: u8, g: u8, b: u8) -> Result<(), String> {
+pub fn set_device_matrix_backlight_static(
+    app: AppHandle,
+    r: u8,
+    g: u8,
+    b: u8,
+) -> Result<(), String> {
     unsafe {
         set_matrix_backlight_static([r, g, b])?;
     }
@@ -159,16 +165,12 @@ pub fn set_device_matrix_backlight_static(app: AppHandle, r: u8, g: u8, b: u8) -
 
 #[tauri::command]
 pub fn get_device_led_rgb() -> Result<[u8; 3], String> {
-    unsafe {
-        get_led_rgb()
-    }
+    unsafe { get_led_rgb() }
 }
 
 #[tauri::command]
 pub fn get_device_dpi_stages() -> Result<Vec<DpiStage>, String> {
-    unsafe {
-        get_dpi_stages()
-    }
+    unsafe { get_dpi_stages() }
 }
 
 #[tauri::command]
@@ -199,15 +201,20 @@ pub fn set_mouse_wheel_inverted(app: AppHandle, inverted: bool) -> Result<(), St
     PlatformPreferencesDriver::set_mouse_wheel_inverted(inverted)?;
     let res = update_settings(app, |s| s.scroll_inverted = inverted);
     if res.is_ok() {
-        let msg = format!("Mouse wheel inversion successfully {} (System preference applied)", if inverted { "enabled" } else { "disabled" });
+        let msg = format!(
+            "Mouse wheel inversion successfully {} (System preference applied)",
+            if inverted { "enabled" } else { "disabled" }
+        );
         log::info!("{}", msg);
         println!("{}", msg);
     }
     res
 }
 
-fn update_settings<F>(app: AppHandle, updater: F) -> Result<(), String> 
-where F: FnOnce(&mut MouseSettings) {
+fn update_settings<F>(app: AppHandle, updater: F) -> Result<(), String>
+where
+    F: FnOnce(&mut MouseSettings),
+{
     let path = get_settings_path(&app)?;
     let mut settings = MouseSettings::load(&path)?;
     updater(&mut settings);
@@ -236,8 +243,9 @@ pub fn save_settings(app: AppHandle, settings: MouseSettings) -> Result<(), Stri
 pub unsafe fn apply_saved_settings(settings: &MouseSettings) {
     info!("Applying saved settings to device: {:?}", settings);
     println!("Applying saved settings to device: {:?}", settings);
-    
-    let mut usb_handle = match PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID) {
+
+    let mut usb_handle = match PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)
+    {
         Ok(h) => h,
         Err(e) => {
             error!("Failed to open device for applying settings: {}", e);
@@ -250,7 +258,7 @@ pub unsafe fn apply_saved_settings(settings: &MouseSettings) {
     let _ = set_polling_rate_with_handle(&mut usb_handle, settings.polling_rate);
     let _ = set_matrix_backlight_static_with_handle(&mut usb_handle, settings.rgb_color);
     let _ = set_backlight_with_handle(&mut usb_handle, settings.brightness);
-    
+
     drop(usb_handle);
 
     // Ensure mouse wheel inversion is applied if supported/requested

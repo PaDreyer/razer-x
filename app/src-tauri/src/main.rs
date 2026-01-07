@@ -1,13 +1,13 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use gui::Gui;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
-use std::{ptr, thread};
 use std::time::Duration;
-use tauri::AppHandle;
+use std::{ptr, thread};
 use tauri::async_runtime::JoinHandle;
-use gui::Gui;
+use tauri::AppHandle;
 use ui_lib::Application;
 
 mod mouse;
@@ -17,7 +17,6 @@ enum AppEvent {
     Close,
     Open,
 }
-
 
 fn main() {
     let app = ui_lib::create_app();
@@ -110,7 +109,7 @@ fn main() {
                 sender_clone.lock().unwrap().send(AppEvent::Close).unwrap();
                 true
             };
-            
+
             let tray = gui::Gui::new(
                 get_battery_status,
                 set_backlight,
@@ -120,15 +119,15 @@ fn main() {
                 open_ui,
                 close_app,
             );
-            
+
             tray.run();
 
             return ();
         })
     }
-    
+
     let tray = create_tray_thread(sender);
-    
+
     let app = ui_lib::create_app();
 
     for event in receiver {
@@ -147,6 +146,7 @@ fn main() {
 
     /*
     let ok = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             let handle = app.handle().clone();
 
@@ -162,9 +162,9 @@ fn main() {
 
             Ok(())
         });
-    
+
     ok.build(tauri::generate_context!()).unwrap().run(|_, _| {});
-    
+
     let app_handle = app_handle.lock().unwrap();
     if let Some(handle) = &*app_handle {
         handle.exit(0);
