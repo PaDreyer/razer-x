@@ -6,6 +6,7 @@ use std::ptr;
 use std::path::PathBuf;
 
 use super::{UsbDriver, Device};
+use crate::{DriverResult, DriverError};
 use bindings::{libusb_context, libusb_get_device_list, libusb_get_device_descriptor, libusb_device_handle, libusb_open, libusb_claim_interface, libusb_free_device_list, libusb_control_transfer, libusb_release_interface, libusb_close, libusb_init, libusb_device, libusb_exit};
 
 pub const LIBUSB_ENDPOINT_IN: u8 = 0x80;
@@ -63,8 +64,11 @@ impl LinuxUsbDriver {
 }
 
 impl UsbDriver for LinuxUsbDriver {
-    unsafe fn new(vendor_id: u16, product_id: u16) -> Result<Self, String> {
-        let handle = Self::find_and_open_device(vendor_id, product_id)?;
+    unsafe fn new(vendor_id: u16, product_id: u16) -> DriverResult<Self> {
+        let handle = match Self::find_and_open_device(vendor_id, product_id) {
+            Ok(h) => h,
+            Err(e) => return Err(DriverError::DeviceNotFound(vendor_id, product_id)),
+        };
 
         Ok(Self {
             handle,
@@ -115,7 +119,7 @@ impl UsbDriver for LinuxUsbDriver {
         index: u16,
         data: &[u8],
         min_wait: Duration,
-    ) -> Result<(), String> {
+    ) -> DriverResult<()> {
         let bm_request_type = 0x21;
         let timeout = 1000;
 
@@ -131,11 +135,11 @@ impl UsbDriver for LinuxUsbDriver {
         );
 
         if transferred < 0 {
-            return Err(format!("Control transfer failed: code {}", transferred));
+            return Err(DriverError::UsbError(format!("Control transfer failed: code {}", transferred)));
         }
 
         if transferred != data.len() as i32 {
-            return Err("Incomplete control transfer".into());
+            return Err(DriverError::IncompleteTransfer);
         }
 
         thread::sleep(min_wait);
@@ -148,7 +152,7 @@ impl UsbDriver for LinuxUsbDriver {
         index: u16,
         min_wait: Duration,
         response_length: u16,
-    ) -> Result<Vec<u8>, String> {
+    ) -> DriverResult<Vec<u8>> {
         let _ = self.send_control_msg(0x09, 0x300, index, data, min_wait);
 
         let bm_request_type = 0xA1;
@@ -166,18 +170,39 @@ impl UsbDriver for LinuxUsbDriver {
         );
 
         if read < 0 {
-            return Err(format!("read_control failed: code {}", read));
+            return Err(DriverError::UsbError(format!("read_control failed: code {}", read)));
         }
 
         Ok(buffer[..read as usize].to_vec())
     }
 
-    unsafe fn close(&mut self) -> Result<(), String> {
+    unsafe fn close(&mut self) -> DriverResult<()> {
         let rc = libusb_release_interface(self.handle, self.interface_index as i32);
         if rc != 0 {
-            return Err(format!("Failed to release interface: code {}", rc));
+            return Err(DriverError::UsbError(format!("Failed to release interface: code {}", rc)));
         }
         libusb_close(self.handle);
         Ok(())
+    }
+    
+    fn on_device_connected<F>(_vendor_id: u16, _product_id: u16, _callback: F) -> DriverResult<()>
+    where
+        F: FnMut(&Device) + Send + 'static,
+    {
+         Err(DriverError::NotImplemented("Linux hotplug not implemented yet".into()))
+    }
+
+    fn on_device_disconnected<F>(_vendor_id: u16, _product_id: u16, _callback: F) -> DriverResult<()>
+    where
+        F: FnMut(&Device) + Send + 'static,
+    {
+         Err(DriverError::NotImplemented("Linux hotplug not implemented yet".into()))
+    }
+
+    fn on_state_changed<F>(&mut self, _callback: F) -> DriverResult<()>
+    where
+        F: FnMut(&Device, &mut c_void) + Send + 'static,
+    {
+         Err(DriverError::NotImplemented("Linux state changed not implemented yet".into()))
     }
 }

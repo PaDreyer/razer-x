@@ -175,37 +175,36 @@ pub fn create_app() -> Application {
                     })
                     .build(app);
 
-                // Register Hotplug Hooks
                 let app_handle = app.handle().clone();
-                unsafe {
-                    PlatformUsbDriver::on_device_connected(
-                        RAZER_USB_VENDOR_ID,
-                        RAZER_BASILISK_V3_PRO_ID,
-                        move |_device| {
-                            log::info!("USB dongle connected - applying saved settings");
-                            let handle = app_handle.clone();
-                            tauri::async_runtime::spawn(async move {
-                                if let Ok(settings) = get_saved_settings(handle) {
-                                    unsafe {
-                                        apply_saved_settings(&settings);
-                                    }
+                PlatformUsbDriver::on_device_connected(
+                    RAZER_USB_VENDOR_ID,
+                    RAZER_BASILISK_V3_PRO_ID,
+                    move |_device| {
+                        log::info!("USB dongle connected - applying saved settings");
+                        let handle = app_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            if let Ok(settings) = get_saved_settings(handle) {
+                                unsafe {
+                                    apply_saved_settings(&settings);
                                 }
-                            });
-                        },
-                    )
-                    .expect("Failed to register connection hook");
+                            }
+                        });
+                    },
+                )
+                .map_err(|e| e.to_string())
+                .expect("Failed to register connection hook");
 
-                    PlatformUsbDriver::on_device_disconnected(
-                        RAZER_USB_VENDOR_ID,
-                        RAZER_BASILISK_V3_PRO_ID,
-                        |_device| {
-                            log::info!("USB dongle disconnected - reverting trackpad settings");
-                            let _ =
-                                driver::PlatformPreferencesDriver::set_mouse_wheel_inverted(true);
-                        },
-                    )
-                    .expect("Failed to register disconnection hook");
-                }
+                PlatformUsbDriver::on_device_disconnected(
+                    RAZER_USB_VENDOR_ID,
+                    RAZER_BASILISK_V3_PRO_ID,
+                    |_device| {
+                        log::info!("USB dongle disconnected - reverting trackpad settings");
+                        let _ =
+                            driver::PlatformPreferencesDriver::set_mouse_wheel_inverted(true);
+                    },
+                )
+                .map_err(|e| e.to_string())
+                .expect("Failed to register disconnection hook");
 
                 // Start polling thread to detect wireless mouse power state changes
                 let app_handle = app.handle().clone();

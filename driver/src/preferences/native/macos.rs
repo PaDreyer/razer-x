@@ -1,5 +1,6 @@
 use bindings::{set_swipe_scroll_direction, CFString, CFBoolean, CFPreferencesSetAppValue, CFPreferencesAppSynchronize, CFPreferencesGetAppBooleanValue, TCFType};
 use crate::preferences::PreferencesDriver;
+use crate::DriverResult;
 
 pub struct MacOsPreferencesDriver;
 
@@ -10,7 +11,7 @@ impl MacOsPreferencesDriver {
 }
 
 impl PreferencesDriver for MacOsPreferencesDriver {
-    fn set_mouse_wheel_inverted(inverted: bool) -> Result<(), String> {
+    fn set_mouse_wheel_inverted(inverted: bool) -> DriverResult<()> {
         // CFStrings für Key und App-ID
         let key = CFString::new("com.apple.swipescrolldirection");
         let app_id = CFString::new("NSGlobalDomain");
@@ -64,7 +65,7 @@ impl PreferencesDriver for MacOsPreferencesDriver {
         Ok(())
     }
 
-    fn is_mouse_wheel_inverted() -> Result<bool, String> {
+    fn is_mouse_wheel_inverted() -> DriverResult<bool> {
         // CFStrings für Key und App-ID
         let key = CFString::new("com.apple.swipescrolldirection");
         let app_id = CFString::new("NSGlobalDomain");

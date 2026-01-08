@@ -1,15 +1,13 @@
 use crate::mouse::{
-    get_backlight, get_backlight_with_handle, get_battery_status, get_battery_status_with_handle,
-    get_dpi_stages, get_dpi_stages_with_handle, get_dpi_xy_with_handle, get_led_rgb,
-    get_led_rgb_with_handle, get_polling_rate_with_handle, set_backlight,
-    set_backlight_with_handle, set_dpi_stages, set_dpi_stages_with_handle, set_dpi_xy,
-    set_dpi_xy_with_handle, set_matrix_backlight_static, set_matrix_backlight_static_with_handle,
-    set_polling_rate, set_polling_rate_with_handle,
+    get_backlight, get_battery_status, get_battery_status_with_handle, get_dpi_stages,
+    get_led_rgb, set_backlight, set_backlight_with_handle, set_dpi_stages,
+    set_dpi_stages_with_handle, set_dpi_xy, set_dpi_xy_with_handle, set_matrix_backlight_static,
+    set_matrix_backlight_static_with_handle, set_polling_rate, set_polling_rate_with_handle,
 };
 use driver::settings::{DpiStage, MouseSettings};
 use driver::{PlatformPreferencesDriver, PlatformUsbDriver, PreferencesDriver, UsbDriver};
 use log::{error, info};
-use razer::{RAZER_BASILISK_V3_PRO_ID, RAZER_USB_VENDOR_ID, ZERO_LED};
+use razer::{RAZER_BASILISK_V3_PRO_ID, RAZER_USB_VENDOR_ID};
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
@@ -216,9 +214,9 @@ where
     F: FnOnce(&mut MouseSettings),
 {
     let path = get_settings_path(&app)?;
-    let mut settings = MouseSettings::load(&path)?;
+    let mut settings = MouseSettings::load(&path).map_err(|e| e.to_string())?;
     updater(&mut settings);
-    settings.save(&path)
+    settings.save(&path).map_err(|e| e.to_string())
 }
 
 fn get_settings_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -231,13 +229,13 @@ fn get_settings_path(app: &AppHandle) -> Result<PathBuf, String> {
 #[tauri::command]
 pub fn get_saved_settings(app: AppHandle) -> Result<MouseSettings, String> {
     let path = get_settings_path(&app)?;
-    MouseSettings::load(&path)
+    MouseSettings::load(&path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn save_settings(app: AppHandle, settings: MouseSettings) -> Result<(), String> {
     let path = get_settings_path(&app)?;
-    settings.save(&path)
+    settings.save(&path).map_err(|e| e.to_string())
 }
 
 pub unsafe fn apply_saved_settings(settings: &MouseSettings) {
@@ -262,7 +260,8 @@ pub unsafe fn apply_saved_settings(settings: &MouseSettings) {
     drop(usb_handle);
 
     // Ensure mouse wheel inversion is applied if supported/requested
-    let _ = PlatformPreferencesDriver::set_mouse_wheel_inverted(settings.scroll_inverted);
+    let _ = PlatformPreferencesDriver::set_mouse_wheel_inverted(settings.scroll_inverted)
+        .map_err(|e| e.to_string());
 }
 
 pub unsafe fn apply_default_settings() {

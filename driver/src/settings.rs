@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use crate::DriverResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,14 +73,13 @@ impl Default for MouseSettings {
 
 impl MouseSettings {
     /// Load settings from a JSON file. Returns default settings if file doesn't exist.
-    pub fn load(path: &Path) -> Result<Self, String> {
+    pub fn load(path: &Path) -> DriverResult<Self> {
         if !path.exists() {
             log::info!("Settings file not found at {:?}, using defaults", path);
             return Ok(Self::default());
         }
 
-        let contents = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read settings file: {}", e))?;
+        let contents = fs::read_to_string(path)?;
 
         let settings: MouseSettings = serde_json::from_str(&contents)
             .map_err(|e| format!("Failed to parse settings file: {}", e))?;
@@ -89,18 +89,16 @@ impl MouseSettings {
     }
 
     /// Save settings to a JSON file.
-    pub fn save(&self, path: &Path) -> Result<(), String> {
+    pub fn save(&self, path: &Path) -> DriverResult<()> {
         // Create parent directory if it doesn't exist
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create settings directory: {}", e))?;
+            fs::create_dir_all(parent)?;
         }
 
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| format!("Failed to serialize settings: {}", e))?;
 
-        fs::write(path, json)
-            .map_err(|e| format!("Failed to write settings file: {}", e))?;
+        fs::write(path, json)?;
 
         log::info!("Saved settings to {:?}", path);
         Ok(())

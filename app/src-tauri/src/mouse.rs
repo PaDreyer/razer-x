@@ -15,12 +15,14 @@ unsafe fn get_data_for_razer_report(
     razer_report.finalize();
     let report_data = razer_report.to_hid_bytes();
 
-    usb_handle.get_feature_report(
-        report_data.as_slice(),
-        index,
-        Duration::from_micros(RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US as u64),
-        RAZER_USB_REPORT_LEN as u16,
-    )
+    usb_handle
+        .get_feature_report(
+            report_data.as_slice(),
+            index,
+            Duration::from_micros(RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US as u64),
+            RAZER_USB_REPORT_LEN as u16,
+        )
+        .map_err(|e| e.to_string())
 }
 
 /// Lightweight check to see if the mouse is responsive.
@@ -59,7 +61,7 @@ pub unsafe fn is_mouse_alive() -> bool {
 
 pub unsafe fn get_battery_status() -> Result<u8, String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = get_battery_status_with_handle(&mut usb_handle);
     drop(usb_handle);
     res
@@ -77,7 +79,7 @@ pub unsafe fn get_battery_status_with_handle(
 
 pub unsafe fn get_polling_rate() -> Result<u16, String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = get_polling_rate_with_handle(&mut usb_handle);
     drop(usb_handle);
     res
@@ -99,7 +101,7 @@ pub unsafe fn get_polling_rate_with_handle(
 
 pub unsafe fn set_backlight(brightness: u8) -> Result<(), String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = set_backlight_with_handle(&mut usb_handle, brightness);
     drop(usb_handle);
     res
@@ -119,7 +121,7 @@ pub unsafe fn set_backlight_with_handle(
 
 pub unsafe fn get_backlight() -> Result<u8, String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = get_backlight_with_handle(&mut usb_handle);
     drop(usb_handle);
     res
@@ -136,7 +138,7 @@ pub unsafe fn get_backlight_with_handle(
 
 pub unsafe fn set_polling_rate(polling_rate: u16) -> Result<(), String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = set_polling_rate_with_handle(&mut usb_handle, polling_rate);
     drop(usb_handle);
     res
@@ -156,7 +158,7 @@ pub unsafe fn set_polling_rate_with_handle(
 
 pub unsafe fn get_dpi_xy() -> Result<(u16, u16), String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = get_dpi_xy_with_handle(&mut usb_handle);
     drop(usb_handle);
     res
@@ -175,7 +177,7 @@ pub unsafe fn get_dpi_xy_with_handle(
 
 pub unsafe fn set_dpi_xy(dpi_x: u16, dpi_y: u16) -> Result<(), String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = set_dpi_xy_with_handle(&mut usb_handle, dpi_x, dpi_y);
     drop(usb_handle);
     res
@@ -196,7 +198,7 @@ pub unsafe fn set_dpi_xy_with_handle(
 
 pub unsafe fn set_matrix_backlight_static(rgb: [u8; 3]) -> Result<(), String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = set_matrix_backlight_static_with_handle(&mut usb_handle, rgb);
     drop(usb_handle);
     res
@@ -219,7 +221,7 @@ pub unsafe fn set_matrix_backlight_static_with_handle(
 
 pub unsafe fn get_led_rgb() -> Result<[u8; 3], String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = get_led_rgb_with_handle(&mut usb_handle);
     drop(usb_handle);
     res
@@ -283,7 +285,7 @@ pub unsafe fn get_dpi_stages() -> Result<Vec<DpiStage>, String> {
         return count;
      */
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = get_dpi_stages_with_handle(&mut usb_handle);
     drop(usb_handle);
     res
@@ -332,7 +334,7 @@ pub unsafe fn get_dpi_stages_with_handle(
 
 pub unsafe fn set_dpi_stages(stages: Vec<DpiStage>) -> Result<(), String> {
     let mut usb_handle =
-        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID)?;
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
     let res = set_dpi_stages_with_handle(&mut usb_handle, stages);
     drop(usb_handle);
     res

@@ -3,6 +3,7 @@ use std::os::raw::{c_void, c_char};
 use std::{ptr, thread};
 use std::time::Duration;
 use super::{Device, UsbDriver};
+use crate::{DriverResult, DriverError};
 use bindings::{
     kIOReturnSuccess, 
     IOServiceMatching,
@@ -252,19 +253,19 @@ impl Drop for MacOsUsbDriver {
 }
 
 impl UsbDriver for MacOsUsbDriver {
-    unsafe fn new(vendor_id: u16, product_id: u16) -> Result<Self, String> {
+    unsafe fn new(vendor_id: u16, product_id: u16) -> DriverResult<Self> {
         let matching_dict = IOServiceMatching(b"IOUSBDevice\0".as_ptr() as *const i8);
         if matching_dict.is_null() {
-            return Err("IOServiceMatching failed".into());
+            return Err(DriverError::UsbError("IOServiceMatching failed".into()));
         }
 
         let mut iter: io_iterator_t = 0;
         let result = IOServiceGetMatchingServices(kIOMasterPortDefault, matching_dict, &mut iter);
         if result != kIOReturnSuccess {
-            return Err("IOServiceGetMatchingServices failed".into());
+            return Err(DriverError::UsbError("IOServiceGetMatchingServices failed".into()));
         }
 
-        let mut device;
+        let device;
         loop {
             let usb_device = IOIteratorNext(iter);
 
@@ -359,7 +360,7 @@ impl UsbDriver for MacOsUsbDriver {
                 _product_id: product_id,
                 device: dev,
             }),
-            None => Err(format!("Device {:04x}:{:04x} not found or busy", vendor_id, product_id)),
+            None => Err(DriverError::DeviceNotFound(vendor_id, product_id)),
         }
     }
 
@@ -402,9 +403,9 @@ impl UsbDriver for MacOsUsbDriver {
         devices
     }
 
-    unsafe fn send_control_msg(&mut self, request: u8, value: u16, index: u16, data: &[u8], min_wait: Duration) -> Result<(), String> {
+    unsafe fn send_control_msg(&mut self, request: u8, value: u16, index: u16, data: &[u8], min_wait: Duration) -> DriverResult<()> {
         if self.device.is_null() {
-            return Err("Device is null".to_string());
+            return Err(DriverError::UsbError("Device is null".to_string()));
         }
 
         let mut buffer = data.to_vec();
@@ -424,23 +425,23 @@ impl UsbDriver for MacOsUsbDriver {
         thread::sleep(min_wait);
 
         if status != 0 {
-            return Err(format!("DeviceRequest failed with status: {:#x}", status));
+            return Err(DriverError::UsbError(format!("DeviceRequest failed with status: {:#x}", status)));
         }
 
         if req.wLenDone != buffer.len() as u32 {
-            return Err("Incomplete transfer".into());
+            return Err(DriverError::IncompleteTransfer);
         }
 
         Ok(())
     }
 
-    unsafe fn get_feature_report(&mut self, data: &[u8], index: u16, min_wait: Duration, response_length: u16) -> Result<Vec<u8>, String> {
+    unsafe fn get_feature_report(&mut self, data: &[u8], index: u16, min_wait: Duration, response_length: u16) -> DriverResult<Vec<u8>> {
         if self.device.is_null() {
-            return Err("Device is null".to_string());
+            return Err(DriverError::UsbError("Device is null".to_string()));
         }
 
         if let Err(e) = self.send_control_msg(0x09, 0x300, index, data, min_wait) {
-            return Err(format!("Failed to send feature report: {}", e));
+            return Err(DriverError::UsbError(format!("Failed to send feature report: {}", e)));
         }
         
         thread::sleep(min_wait);
@@ -462,24 +463,24 @@ impl UsbDriver for MacOsUsbDriver {
         thread::sleep(min_wait);
 
         if status != 0 {
-            return Err(format!("DeviceRequest failed with status: {:#x}", status));
+            return Err(DriverError::UsbError(format!("DeviceRequest failed with status: {:#x}", status)));
         }
 
         if req.wLenDone != buffer.len() as u32 {
-            return Err("Incomplete transfer".into());
+            return Err(DriverError::IncompleteTransfer);
         }
 
         Ok(buffer)
     }
     
-    unsafe fn close(&mut self) -> Result<(), String> {
+    unsafe fn close(&mut self) -> DriverResult<()> {
         if self.device.is_null() {
-            return Err("Device is null".to_string());
+            return Err(DriverError::UsbError("Device is null".to_string()));
         }
 
         let result = (**self.device).USBDeviceClose.unwrap()(self.device as *mut c_void);
         if result != kIOReturnSuccess {
-            return Err(format!("Failed to close device: {:#x}", result));
+            return Err(DriverError::UsbError(format!("Failed to close device: {:#x}", result)));
         }
 
         (**self.device).Release.unwrap()(self.device as *mut c_void);
@@ -488,7 +489,7 @@ impl UsbDriver for MacOsUsbDriver {
         Ok(())
     }
 
-    fn on_device_connected<F>(vendor_id: u16, product_id: u16, callback: F) -> Result<(), String>
+    fn on_device_connected<F>(vendor_id: u16, product_id: u16, callback: F) -> DriverResult<()>
     where
         F: FnMut(&Device) + Send + 'static,
     {
@@ -498,7 +499,7 @@ impl UsbDriver for MacOsUsbDriver {
         Ok(())
     }
 
-    fn on_device_disconnected<F>(vendor_id: u16, product_id: u16, callback: F) -> Result<(), String>
+    fn on_device_disconnected<F>(vendor_id: u16, product_id: u16, callback: F) -> DriverResult<()>
     where
         F: FnMut(&Device) + Send + 'static,
     {
@@ -508,11 +509,10 @@ impl UsbDriver for MacOsUsbDriver {
         Ok(())
     }
 
-    fn on_state_changed<F>(&mut self, _callback: F) -> Result<(), String>
+    fn on_state_changed<F>(&mut self, _callback: F) -> DriverResult<()>
     where
         F: FnMut(&Device, &mut c_void) + Send + 'static,
     {
-        // This function can be implemented using IOKit notifications or similar mechanisms.
-        unimplemented!("State change notifications are not implemented for macOS");
+        Err(DriverError::NotImplemented("State change notifications are not implemented for macOS".into()))
     }
 }
