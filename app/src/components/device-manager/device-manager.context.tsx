@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import {IDeviceInformation, IDeviceManagerApi} from "./types.ts";
+import { IDeviceInformation, IDeviceManagerApi } from "./types.ts";
 
 
 /**
@@ -13,11 +13,12 @@ export type DeviceManagerContextState = {
     isInitialized: boolean;
     setBacklightBrightness: (brightness: number) => Promise<void>;
     setBacklightColor: (color: { r: number; g: number; b: number }) => Promise<void>;
-    setDpiXY: (dpiX: number, dpiY: number) => Promise<void>;
+    setDpiXy: (dpiX: number, dpiY: number) => Promise<void>;
     setPollingRate: (pollingRate: number) => Promise<void>;
     setMouseWheelInverted: (inverted: boolean) => Promise<void>;
     setSmartWheelEnabled: (enabled: boolean) => Promise<void>;
     getDpiStages: () => Promise<Array<{ dpiX: number; dpiY: number; stage: number; active: number }>>;
+    setDpiStages: (stages: Array<{ dpiX: number; dpiY: number; stage: number; active: number }>) => Promise<void>;
 };
 
 /**

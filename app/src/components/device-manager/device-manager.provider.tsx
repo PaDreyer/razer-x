@@ -48,15 +48,15 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
                 setDeviceInformation(prev => prev ? { ...prev, pollingRate: pollingRate as PossiblePollingRates } : null);
             })
             .catch(handleError);
-    }, [ api ]);
+    }, [api]);
 
-    const setDpiXY = useCallback((dpiX: number, dpiY: number) => {
-        return api.setDpiXY(dpiX, dpiY)
+    const setDpiXy = useCallback((dpiX: number, dpiY: number) => {
+        return api.setDpiXy(dpiX, dpiY)
             .then(() => {
-                setDeviceInformation(prev => prev ? { ...prev, dpiX, dpiY } : null);
+                setDeviceInformation(prev => prev ? { ...prev, dpiXy: [dpiX, dpiY] } : null);
             })
             .catch(handleError);
-    }, [ api ]);
+    }, [api]);
 
     const setBacklightBrightness = useCallback((brightness: number) => {
         return api.setBacklightBrightness(brightness)
@@ -64,7 +64,7 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
                 setDeviceInformation(prev => prev ? { ...prev, backlightBrightness: brightness } : null);
             })
             .catch(handleError);
-    }, [ api ]);
+    }, [api]);
 
     const setBacklightColor = useCallback((color: { r: number; g: number; b: number }) => {
         return api.setBacklightColor(color)
@@ -72,7 +72,7 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
                 setDeviceInformation(prev => prev ? { ...prev, backlightColor: color } : null);
             })
             .catch(handleError);
-    }, [ api ]);
+    }, [api]);
 
     const setSmartWheelEnabled = useCallback((enabled: boolean) => {
         return api.setSmartWheelEnabled(enabled)
@@ -80,7 +80,7 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
                 setDeviceInformation(prev => prev ? { ...prev, smartWheelEnabled: enabled } : null);
             })
             .catch(handleError);
-    }, [ api ]);
+    }, [api]);
 
     const setMouseWheelInverted = useCallback((inverted: boolean) => {
         return api.setMouseWheelInverted(inverted)
@@ -88,12 +88,20 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
                 setDeviceInformation(prev => prev ? { ...prev, mouseWheelInverted: inverted } : null);
             })
             .catch(handleError);
-    }, [ api ]);
+    }, [api]);
 
     const getDpiStages = useCallback(async () => {
         return api.getDpiStages()
             .catch(handleError);
-    }, [ api ]);
+    }, [api]);
+
+    const setDpiStages = useCallback((stages: Array<{ dpiX: number; dpiY: number; stage: number; active: number }>) => {
+        return api.setDpiStages(stages)
+            .then(() => {
+                setDeviceInformation(prev => prev ? { ...prev, dpiStages: stages } : null);
+            })
+            .catch(handleError);
+    }, [api]);
 
     const loadDeviceInformation = useCallback(async () => {
         const deviceInformation = await api.getDeviceInformation()
@@ -102,7 +110,7 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
         if (deviceInformation) {
             setDeviceInformation(deviceInformation);
         }
-    }, [ api ]);
+    }, [api]);
 
     // Initialize device information on first render
     useEffect(() => {
@@ -123,12 +131,24 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
         }
     }, []);
 
-    // Update battery level periodically
+    // Update device information periodically
     useEffect(() => {
-        //const intervalTimer = setInterval(updateBatteryLevel, 5000);
+        let intervalTimer: ReturnType<typeof setInterval> | null = null;
 
-        //return () => clearTimeout(intervalTimer);
-    }, [])
+        if (isInitialized) {
+            console.log("Starting device info polling (every 5 seconds)");
+            intervalTimer = setInterval(() => {
+                loadDeviceInformation().catch(console.error);
+            }, 5000);
+        }
+
+        return () => {
+            if (intervalTimer) {
+                console.log("Stopping device info polling");
+                clearInterval(intervalTimer);
+            }
+        };
+    }, [isInitialized, loadDeviceInformation]);
 
     const value: DeviceManagerContextState = {
         api: props.api,
@@ -138,18 +158,19 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
         isInitialized,
         setBacklightBrightness,
         setBacklightColor,
-        setDpiXY,
+        setDpiXy,
         setPollingRate,
         setMouseWheelInverted,
         setSmartWheelEnabled,
         getDpiStages,
+        setDpiStages,
     };
 
     return (
         <DeviceManagerContext.Provider value={value}>
-            { props.children }
+            {props.children}
         </DeviceManagerContext.Provider>
     );
 }
 
-export const DeviceManagerProvider =  memo(DeviceManagerProviderComponent);
+export const DeviceManagerProvider = memo(DeviceManagerProviderComponent);

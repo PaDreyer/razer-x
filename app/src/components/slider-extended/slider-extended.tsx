@@ -22,6 +22,7 @@ export type SliderComponentProps = {
 
 export type SliderComponentHandle = {
     setValueExtern: (value: number, skipDebounceIfExists: boolean) => void;
+    setValueOnly: (value: number) => void;
 };
 
 export const SliderExtended = memo(
@@ -36,7 +37,7 @@ export const SliderExtended = memo(
                 ? debounce((val: number) => {
                     props.onChange?.(val);
                 }, props.debounceDelay)
-                : props.onChange || (() => {}),
+                : props.onChange || (() => { }),
             [props.debounceDelay, props.onChange]
         );
 
@@ -49,6 +50,9 @@ export const SliderExtended = memo(
                 } else {
                     onChange(val);
                 }
+            },
+            setValueOnly: (val: number) => {
+                setValue(val);
             },
         }));
 

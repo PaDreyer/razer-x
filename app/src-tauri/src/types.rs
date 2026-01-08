@@ -1,11 +1,4 @@
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct DpiStage {
-    pub dpi_x: u16,
-    pub dpi_y: u16,
-    pub stage: u8,
-    pub active: bool,
-}
-
+pub use driver::settings::DpiStage;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub enum DeviceType {

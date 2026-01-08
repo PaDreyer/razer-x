@@ -1,7 +1,7 @@
 export interface IDeviceInformation {
     batteryLevel: number;
     pollingRate: PossiblePollingRates;
-    dpiXY: [number, number];
+    dpiXy: [number, number];
     backlightBrightness: number;
     backlightColor: RGBColor;
     matrixBehavior: PossibleMatrixBehaviors;
@@ -26,7 +26,7 @@ export type DpiStage = {
 export interface IDeviceManagerApi {
     getDeviceInformation(): Promise<IDeviceInformation>;
     setPollingRate(pollingRate: PossiblePollingRates): Promise<void>;
-    setDpiXY(dpiX: number, dpiY: number): Promise<void>;
+    setDpiXy(dpiX: number, dpiY: number): Promise<void>;
     getDpiStages(): Promise<Array<DpiStage>>;
     setDpiStages(stages: Array<DpiStage>): Promise<void>;
     getBatteryLevel(): Promise<number>;

@@ -1,176 +1,248 @@
-use std::time::Duration;
-use driver::UsbDriver;
-use razer::{RazerReport, BACKLIGHT_LED, RAZER_BASILISK_V3_PRO_ID,
-            RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US, RAZER_USB_REPORT_LEN, RAZER_USB_VENDOR_ID,
-            ZERO_LED};
 use crate::types::DpiStage;
+use driver::UsbDriver;
 use razer::DpiStage as RazerDpiStage;
+use razer::{
+    RazerReport, BACKLIGHT_LED, RAZER_BASILISK_V3_PRO_ID, RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US,
+    RAZER_USB_REPORT_LEN, RAZER_USB_VENDOR_ID, ZERO_LED,
+};
+use std::time::Duration;
 
-unsafe fn get_data_for_razer_report(usb_handle: &mut driver::PlatformUsbDriver, index: u16, razer_report: &mut RazerReport) -> Result<Vec<u8>, String> {
+unsafe fn get_data_for_razer_report(
+    usb_handle: &mut driver::PlatformUsbDriver,
+    index: u16,
+    razer_report: &mut RazerReport,
+) -> Result<Vec<u8>, String> {
     razer_report.finalize();
     let report_data = razer_report.to_hid_bytes();
 
-    usb_handle.get_feature_report(
-        report_data.as_slice(),
-        index,
-        Duration::from_micros(RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US as u64),
-        RAZER_USB_REPORT_LEN as u16,
-    )
+    usb_handle
+        .get_feature_report(
+            report_data.as_slice(),
+            index,
+            Duration::from_micros(RAZER_NEW_MOUSE_RECEIVER_WAIT_MAX_US as u64),
+            RAZER_USB_REPORT_LEN as u16,
+        )
+        .map_err(|e| e.to_string())
 }
 
-pub unsafe fn get_battery_status() -> u8 {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
-    let mut get_battery_report = RazerReport::get_battery_level_report();
-    let battery_status = match get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_battery_report) {
-        Ok(data) => {
-            let report = RazerReport::from_bytes(data.as_slice());
-            let raw_battery_status = report.arguments[1];
-            (raw_battery_status as f32 / 255f32 * 100f32) as u8
-        },
-        Err(e) => {
-            eprintln!("Error getting battery status: {}", e);
-            0
-        }
-    };
-    drop(usb_handle);
-    battery_status
-}
+/// Lightweight check to see if the mouse is responsive.
+/// Uses firmware version query and analyzes the response payload.
+///
+/// Returns:
+/// - `true`: Mouse is powered ON and responding (status byte 0x02)
+/// - `false`: Mouse is powered OFF (status byte 0x04) OR dongle is unplugged
+///
+/// This handles both:
+/// 1. Wireless mouse power state (on/off while dongle stays plugged in)
+/// 2. Physical dongle unplug (device not found)
+pub unsafe fn is_mouse_alive() -> bool {
+    match driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID) {
+        Ok(mut usb_handle) => {
+            let mut firmware_report = RazerReport::get_firmware_report();
+            match get_data_for_razer_report(&mut usb_handle, 0x00, &mut firmware_report) {
+                Ok(data) => {
+                    // Status byte meanings:
+                    // 0x02 = Command Successful (mouse is ON)
+                    // 0x04 = Command No Response / Timeout (mouse is OFF)
+                    let is_alive = data[0] == 0x02;
 
-pub unsafe fn get_polling_rate() -> u16 {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
-    let mut get_poll_rate_report = RazerReport::get_poll_rate_report();
-    let poll_rate = match get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_poll_rate_report) {
-        Ok(data) => {
-            let report = RazerReport::from_bytes(data.as_slice());
-            match report.arguments[0] {
-                0x01 => 1000,
-                0x02 => 500,
-                0x08 => 125,
-                _ => {
-                    eprintln!("Unknown polling rate: {}", report.arguments[0]);
-                    0
+                    drop(usb_handle);
+                    is_alive
+                }
+                Err(_) => {
+                    drop(usb_handle);
+                    false
                 }
             }
-        },
-        Err(e) => {
-            eprintln!("Error getting polling rate: {}", e);
-            0
         }
-    };
-
-    drop(usb_handle);
-    poll_rate
+        Err(_) => false,
+    }
 }
 
-pub unsafe fn set_backlight(brightness: u8) {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
-    let mut set_brightness_report = RazerReport::set_matrix_brightness_report(brightness);
-    match get_data_for_razer_report(&mut usb_handle, 0x00, &mut set_brightness_report) {
-        Ok(_) => println!("Backlight set to {}%", brightness),
-        Err(e) => eprintln!("Error setting backlight: {}", e),
-    }
+pub unsafe fn get_battery_status() -> Result<u8, String> {
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = get_battery_status_with_handle(&mut usb_handle);
     drop(usb_handle);
+    res
+}
+
+pub unsafe fn get_battery_status_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+) -> Result<u8, String> {
+    let mut get_battery_report = RazerReport::get_battery_level_report();
+    let data = get_data_for_razer_report(usb_handle, 0x00, &mut get_battery_report)?;
+    let report = RazerReport::from_bytes(data.as_slice());
+    let raw_battery_status = report.arguments[1];
+    Ok((raw_battery_status as f32 / 255f32 * 100f32) as u8)
+}
+
+pub unsafe fn get_polling_rate() -> Result<u16, String> {
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = get_polling_rate_with_handle(&mut usb_handle);
+    drop(usb_handle);
+    res
+}
+
+pub unsafe fn get_polling_rate_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+) -> Result<u16, String> {
+    let mut get_poll_rate_report = RazerReport::get_poll_rate_report();
+    let data = get_data_for_razer_report(usb_handle, 0x00, &mut get_poll_rate_report)?;
+    let report = RazerReport::from_bytes(data.as_slice());
+    match report.arguments[0] {
+        0x01 => Ok(1000),
+        0x02 => Ok(500),
+        0x08 => Ok(125),
+        _ => Err(format!("Unknown polling rate: {}", report.arguments[0])),
+    }
+}
+
+pub unsafe fn set_backlight(brightness: u8) -> Result<(), String> {
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = set_backlight_with_handle(&mut usb_handle, brightness);
+    drop(usb_handle);
+    res
+}
+
+pub unsafe fn set_backlight_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+    brightness: u8,
+) -> Result<(), String> {
+    let mut set_brightness_report = RazerReport::set_matrix_brightness_report(brightness);
+    get_data_for_razer_report(usb_handle, 0x00, &mut set_brightness_report)?;
+    let msg = format!("Backlight brightness successfully set to {}%", brightness);
+    log::info!("{}", msg);
+    println!("{}", msg);
+    Ok(())
 }
 
 pub unsafe fn get_backlight() -> Result<u8, String> {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = get_backlight_with_handle(&mut usb_handle);
+    drop(usb_handle);
+    res
+}
+
+pub unsafe fn get_backlight_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+) -> Result<u8, String> {
     let mut get_brightness_report = RazerReport::get_matrix_brightness_report();
-    let result = get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_brightness_report);
-    drop(usb_handle);
-    match result {
-        Ok(data) => {
-            let report = RazerReport::from_bytes(data.as_slice());
-            println!("Backlight brightness: {:?}", report.arguments);
-            Ok(report.arguments[0])
-        },
-        Err(e) => {
-            eprintln!("Error getting backlight brightness: {}", e);
-            Err(e)
-        }
-    }
+    let data = get_data_for_razer_report(usb_handle, 0x00, &mut get_brightness_report)?;
+    let report = RazerReport::from_bytes(data.as_slice());
+    Ok(report.arguments[0])
 }
 
-pub unsafe fn set_polling_rate(polling_rate: u16) {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
-    let mut set_poll_rate_report = RazerReport::set_poll_rate_report(polling_rate);
-    match get_data_for_razer_report(&mut usb_handle, 0x00, &mut set_poll_rate_report) {
-        Ok(_) => println!("Polling rate set to {}Hz", polling_rate),
-        Err(e) => eprintln!("Error setting polling rate: {}", e),
-    }
+pub unsafe fn set_polling_rate(polling_rate: u16) -> Result<(), String> {
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = set_polling_rate_with_handle(&mut usb_handle, polling_rate);
     drop(usb_handle);
+    res
 }
 
-pub unsafe fn get_dpi_xy() -> (u16, u16) {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
+pub unsafe fn set_polling_rate_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+    polling_rate: u16,
+) -> Result<(), String> {
+    let mut set_poll_rate_report = RazerReport::set_poll_rate_report(polling_rate)?;
+    get_data_for_razer_report(usb_handle, 0x00, &mut set_poll_rate_report)?;
+    let msg = format!("Polling rate successfully set to {}Hz", polling_rate);
+    log::info!("{}", msg);
+    println!("{}", msg);
+    Ok(())
+}
+
+pub unsafe fn get_dpi_xy() -> Result<(u16, u16), String> {
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = get_dpi_xy_with_handle(&mut usb_handle);
+    drop(usb_handle);
+    res
+}
+
+pub unsafe fn get_dpi_xy_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+) -> Result<(u16, u16), String> {
     let mut get_dpi_report = RazerReport::get_dpi_xy_report();
-    match get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_dpi_report) {
-        Ok(data) => {
-            drop(usb_handle);
-            let report = RazerReport::from_bytes(data.as_slice());
-            let dpi_x = ((report.arguments[1] as u16) << 8) | (report.arguments[2] as u16 & 0xFF);
-            let dpi_y = ((report.arguments[3] as u16) << 8) | (report.arguments[4] as u16 & 0xFF);
-
-            (dpi_x, dpi_y)
-        },
-        Err(e) => {
-            drop(usb_handle);
-            eprintln!("Error getting DPI: {}", e);
-            (0, 0)
-        }
-    }
+    let data = get_data_for_razer_report(usb_handle, 0x00, &mut get_dpi_report)?;
+    let report = RazerReport::from_bytes(data.as_slice());
+    let dpi_x = ((report.arguments[1] as u16) << 8) | (report.arguments[2] as u16 & 0xFF);
+    let dpi_y = ((report.arguments[3] as u16) << 8) | (report.arguments[4] as u16 & 0xFF);
+    Ok((dpi_x, dpi_y))
 }
 
-pub unsafe fn set_dpi_xy(dpi_x: u16, dpi_y: u16) {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
+pub unsafe fn set_dpi_xy(dpi_x: u16, dpi_y: u16) -> Result<(), String> {
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = set_dpi_xy_with_handle(&mut usb_handle, dpi_x, dpi_y);
+    drop(usb_handle);
+    res
+}
+
+pub unsafe fn set_dpi_xy_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+    dpi_x: u16,
+    dpi_y: u16,
+) -> Result<(), String> {
     let mut set_dpi_report = RazerReport::set_dpi_xy_report(dpi_x, dpi_y);
-    
-    match get_data_for_razer_report(&mut usb_handle, 0x00, &mut set_dpi_report) {
-        Ok(_) => println!("DPI set to {}x{}", dpi_x, dpi_y),
-        Err(e) => eprintln!("Error setting DPI: {}", e),
-    }
-    drop(usb_handle);
+    get_data_for_razer_report(usb_handle, 0x00, &mut set_dpi_report)?;
+    let msg = format!("DPI successfully set to {}x{}", dpi_x, dpi_y);
+    log::info!("{}", msg);
+    println!("{}", msg);
+    Ok(())
 }
 
-pub unsafe fn set_matrix_backlight_static(rgb: [u8; 3]) {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
-    let mut set_static_report = RazerReport::set_matrix_effect_static_report(rgb, Some(ZERO_LED));
-    match get_data_for_razer_report(&mut usb_handle, 0x00, &mut set_static_report) {
-        Ok(_) => println!("Matrix backlight set to static"),
-        Err(e) => eprintln!("Error setting matrix backlight: {}", e),
-    }
+pub unsafe fn set_matrix_backlight_static(rgb: [u8; 3]) -> Result<(), String> {
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = set_matrix_backlight_static_with_handle(&mut usb_handle, rgb);
     drop(usb_handle);
+    res
+}
+
+pub unsafe fn set_matrix_backlight_static_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+    rgb: [u8; 3],
+) -> Result<(), String> {
+    let mut set_static_report = RazerReport::set_matrix_effect_static_report(rgb, Some(ZERO_LED));
+    get_data_for_razer_report(usb_handle, 0x00, &mut set_static_report)?;
+    let msg = format!(
+        "Matrix backlight successfully set to static RGB: [{}, {}, {}]",
+        rgb[0], rgb[1], rgb[2]
+    );
+    log::info!("{}", msg);
+    println!("{}", msg);
+    Ok(())
 }
 
 pub unsafe fn get_led_rgb() -> Result<[u8; 3], String> {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
-    let mut get_led_report = RazerReport::get_led_rgb_report(Some(BACKLIGHT_LED));
-    
-    let result = get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_led_report);
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = get_led_rgb_with_handle(&mut usb_handle);
     drop(usb_handle);
-    
-    match result {
-        Ok(data) => {
-            let report = RazerReport::from_bytes(data.as_slice());
-            println!("LED RGB: {:?}", report.arguments);
-            println!("Report: {:?}", report);
-            if report.arguments.len() < 3 {
-                return Err("Invalid LED RGB data received".to_string());
-            }
-            
-            let rgb = [
-                report.arguments[0],
-                report.arguments[1],
-                report.arguments[2],
-            ];
-            
-            println!("LED RGB: {:?}", rgb);
-            Ok(rgb)
-        },
-        Err(e) => {
-            eprintln!("Error getting LED RGB: {}", e);
-            Err(e)
-        }
+    res
+}
+
+pub unsafe fn get_led_rgb_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+) -> Result<[u8; 3], String> {
+    let mut get_led_report = RazerReport::get_led_rgb_report(Some(BACKLIGHT_LED));
+    let data = get_data_for_razer_report(usb_handle, 0x00, &mut get_led_report)?;
+    let report = RazerReport::from_bytes(data.as_slice());
+
+    if report.arguments.len() < 3 {
+        return Err("Invalid LED RGB data received".to_string());
     }
+
+    Ok([
+        report.arguments[0],
+        report.arguments[1],
+        report.arguments[2],
+    ])
 }
 
 pub unsafe fn get_dpi_stages() -> Result<Vec<DpiStage>, String> {
@@ -212,91 +284,93 @@ pub unsafe fn get_dpi_stages() -> Result<Vec<DpiStage>, String> {
 
         return count;
      */
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
-    let mut get_dpi_stages_report = RazerReport::get_dpi_stages_report();
-
-    let result = get_data_for_razer_report(&mut usb_handle, 0x00, &mut get_dpi_stages_report);
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = get_dpi_stages_with_handle(&mut usb_handle);
     drop(usb_handle);
+    res
+}
+pub unsafe fn get_dpi_stages_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+) -> Result<Vec<DpiStage>, String> {
+    let mut get_dpi_stages_report = RazerReport::get_dpi_stages_report();
+    let data = get_data_for_razer_report(usb_handle, 0x00, &mut get_dpi_stages_report)?;
+    let report = RazerReport::from_bytes(data.as_slice());
 
-    match result {
-        Ok(data) => {
-            let report = RazerReport::from_bytes(data.as_slice());
-            println!("DPI Stages: {:?}", report.arguments);
-            if report.arguments.len() < 3 {
-                return Err("Invalid DPI stages data received".to_string());
-            }
+    if report.arguments.len() < 3 {
+        return Err("Invalid DPI stages data received".to_string());
+    }
 
-            let mut data: Vec<DpiStage> = vec![];
-            
-            let mut args = &report.arguments[4..];
-            
-            let active_stage = report.arguments[1];
-            let dpi_stages_count = report.arguments[2];
-            
-            for current_stage in 0..dpi_stages_count {
-                if args.len() < 4 {
-                    eprintln!("Not enough data for DPI stage {}", current_stage);
-                    break;
-                }
+    let mut data: Vec<DpiStage> = vec![];
+    let mut args = &report.arguments[4..];
+    let active_stage = report.arguments[1];
+    let dpi_stages_count = report.arguments[2];
 
-                let dpi_x = ((args[0] as u16) << 8) | (args[1] as u16 & 0xFF);
-                let dpi_y = ((args[2] as u16) << 8) | (args[3] as u16 & 0xFF);
-                let active = if (current_stage + 1) == active_stage { true } else { false };
+    for current_stage in 0..dpi_stages_count {
+        if args.len() < 4 {
+            break;
+        }
 
-                data.push(DpiStage {
-                    stage: current_stage + 1,
-                    dpi_x,
-                    dpi_y,
-                    active,
-                });
+        let dpi_x = ((args[0] as u16) << 8) | (args[1] as u16 & 0xFF);
+        let dpi_y = ((args[2] as u16) << 8) | (args[3] as u16 & 0xFF);
+        let active = (current_stage + 1) == active_stage;
 
-                args = &args[7..];
-            }
+        data.push(DpiStage {
+            stage: current_stage + 1,
+            dpi_x,
+            dpi_y,
+            active,
+        });
 
-            Ok(data)
-        },
-        Err(e) => {
-            eprintln!("Error getting DPI stages: {}", e);
-            Err(e)
+        if args.len() >= 7 {
+            args = &args[7..];
+        } else {
+            break;
         }
     }
+
+    Ok(data)
 }
 
 pub unsafe fn set_dpi_stages(stages: Vec<DpiStage>) -> Result<(), String> {
-    let mut usb_handle = driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID);
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = set_dpi_stages_with_handle(&mut usb_handle, stages);
+    drop(usb_handle);
+    res
+}
+
+pub unsafe fn set_dpi_stages_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+    stages: Vec<DpiStage>,
+) -> Result<(), String> {
     if stages.is_empty() {
         return Err("No DPI stages provided".to_string());
     }
-    
-    for stage in &stages {
-        println!("Stage: {:?}", stage);
-    }
-    
-    let active_dpi_stage = stages.iter().find(|s| s.active).unwrap().stage;
-    let dpi_stages: Vec<RazerDpiStage> = stages.iter().map(|dpi_stage| {
-        RazerDpiStage {
+
+    let active_dpi_stage = stages
+        .iter()
+        .find(|s| s.active)
+        .map(|s| s.stage)
+        .unwrap_or(1);
+    let dpi_stages: Vec<RazerDpiStage> = stages
+        .iter()
+        .map(|dpi_stage| RazerDpiStage {
             stage: dpi_stage.stage,
             dpi_x: dpi_stage.dpi_x,
             dpi_y: dpi_stage.dpi_y,
-        }
-    }).collect();
-    
-    for dpi_stage in &dpi_stages {
-        println!("DPI Stage: {:?}", dpi_stage);
-    }
-    
-    return Ok(());
-    
-    let mut set_dpi_stages_report = RazerReport::set_dpi_stages_report(active_dpi_stage, dpi_stages);
+        })
+        .collect();
 
-    match get_data_for_razer_report(&mut usb_handle, 0x00, &mut set_dpi_stages_report) {
-        Ok(_) => {
-            println!("DPI stages set successfully");
-            Ok(())
-        },
-        Err(e) => {
-            eprintln!("Error setting DPI stages: {}", e);
-            Err(e)
-        }
-    }
+    let mut set_dpi_stages_report =
+        RazerReport::set_dpi_stages_report(active_dpi_stage, dpi_stages);
+    get_data_for_razer_report(usb_handle, 0x00, &mut set_dpi_stages_report)?;
+
+    let msg = format!(
+        "DPI stages successfully updated (Active Stage: {})",
+        active_dpi_stage
+    );
+    log::info!("{}", msg);
+    println!("{}", msg);
+    Ok(())
 }

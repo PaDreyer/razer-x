@@ -5,7 +5,7 @@ import './App.css';
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
-import {getCurrentWindow} from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 // Create a new router instance
 const router = createRouter({ routeTree })
@@ -28,7 +28,7 @@ if (!rootElement.innerHTML) {
     )
     const window = getCurrentWindow()
 
-    const unlisten = await getCurrentWindow().onCloseRequested(async (event) => {
+    getCurrentWindow().onCloseRequested(async (event) => {
         console.log("event: ", event);
         event.preventDefault();
         await window.hide();
