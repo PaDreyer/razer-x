@@ -1,0 +1,52 @@
+.picker {
+    display: flex;
+    position: relative;
+}
+
+.swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+}
+
+.popover {
+    z-index: 2;
+    display: flex;
+    flex-direction: row;
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    border-radius: 9px;
+    padding: 20px 0 20px 20px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.popover-footer {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 20px;
+}
+
+.picker__swatches {
+    position: relative;
+    display: flex;
+    margin: 0 5px 0 15px;
+    #padding: 12px;
+    flex-wrap: wrap;
+}
+
+.picker__swatch {
+    width: 24px;
+    height: 24px;
+    margin: 3px;
+    border: none;
+    padding: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+}

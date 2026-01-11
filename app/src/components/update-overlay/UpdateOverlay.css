@@ -1,0 +1,88 @@
+.update-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.update-card {
+    background: rgba(30, 30, 35, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 40px;
+    width: 380px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    color: white;
+}
+
+.update-card h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.version {
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 32px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-container {
+    margin-top: 24px;
+}
+
+.status-text {
+    margin-bottom: 16px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.progress-bar-bg {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+    transition: width 0.4s cubic-bezier(0.1, 0.7, 0.1, 1);
+}
+
+.progress-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.progress-percentage {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.error-text {
+    color: #f87171;
+    font-size: 0.8rem;
+    margin-top: 20px;
+    background: rgba(248, 113, 113, 0.1);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(248, 113, 113, 0.2);
+}
