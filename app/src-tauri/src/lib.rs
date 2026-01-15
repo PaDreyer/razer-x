@@ -97,6 +97,9 @@ pub fn create_app() -> Application {
                 // Get windows
                 let splashscreen = app.get_webview_window("splashscreen").unwrap();
                 let main = app.get_webview_window("main").unwrap();
+
+                // Show splashscreen
+                let _ = splashscreen.show();
                 
                 let handle = app.handle().clone();
                 let splash_clone = splashscreen.clone();
@@ -104,11 +107,10 @@ pub fn create_app() -> Application {
                 
                 tauri::async_runtime::spawn(async move {
                     // Wait briefly for splashscreen to load
-                    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                     
                     println!("Emitting loading-status: Checking for updates...");
                     let _ = handle.emit_to("splashscreen", "loading-status", "Checking for updates...");
-                    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                     
                     match handle.updater().expect("failed to get updater").check().await {
                         Ok(Some(update)) => {
@@ -159,7 +161,7 @@ pub fn create_app() -> Application {
                     
                     println!("Emitting loading-status: Loading assets...");
                     let _ = handle.emit_to("splashscreen", "loading-status", "Loading assets...");
-                    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     
                     println!("Emitting loading-status: Applying default settings...");
                     let _ = handle.emit_to("splashscreen", "loading-status", "Applying default settings...");
@@ -173,11 +175,10 @@ pub fn create_app() -> Application {
                             }
                         }
                     }
-                    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
                     println!("Emitting loading-status: Initializing...");
                     let _ = handle.emit_to("splashscreen", "loading-status", "Initializing...");
-                    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     
                     println!("Emitting initialization-complete");
                     let _ = handle.emit_to("splashscreen", "initialization-complete", ());
