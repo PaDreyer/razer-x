@@ -141,6 +141,8 @@ pub fn create_app() -> Application {
                                 log::info!("{}", success_msg);
                                 println!("{}", success_msg);
                                 let _ = handle.emit_to("splashscreen", "update-status", "finished");
+                                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                                handle.restart();
                             }
                         }
                         Ok(None) => {
