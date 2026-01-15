@@ -59,6 +59,24 @@ pub unsafe fn is_mouse_alive() -> bool {
     }
 }
 
+pub unsafe fn is_mouse_charging() -> Result<bool, String> {
+    let mut usb_handle =
+        driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;
+    let res = is_mouse_charging_with_handle(&mut usb_handle);
+    drop(usb_handle);
+    res
+}
+
+pub unsafe fn is_mouse_charging_with_handle(
+    usb_handle: &mut driver::PlatformUsbDriver,
+) -> Result<bool, String> {
+    let mut get_charging_report = RazerReport::get_charging_state_report();
+    let data = get_data_for_razer_report(usb_handle, 0x00, &mut get_charging_report)?;
+    let report = RazerReport::from_bytes(data.as_slice());
+    // 0x00 or 0x01 on args[1]
+    Ok(report.arguments[1] == 0x01)
+}
+
 pub unsafe fn get_battery_status() -> Result<u8, String> {
     let mut usb_handle =
         driver::PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID).map_err(|e| e.to_string())?;

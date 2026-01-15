@@ -1,8 +1,9 @@
 use crate::mouse::{
     get_backlight, get_battery_status, get_battery_status_with_handle, get_dpi_stages,
-    get_led_rgb, set_backlight, set_backlight_with_handle, set_dpi_stages,
-    set_dpi_stages_with_handle, set_dpi_xy, set_dpi_xy_with_handle, set_matrix_backlight_static,
-    set_matrix_backlight_static_with_handle, set_polling_rate, set_polling_rate_with_handle,
+    get_led_rgb, is_mouse_charging_with_handle, is_mouse_charging, set_backlight, set_backlight_with_handle,
+    set_dpi_stages, set_dpi_stages_with_handle, set_dpi_xy, set_dpi_xy_with_handle,
+    set_matrix_backlight_static, set_matrix_backlight_static_with_handle, set_polling_rate,
+    set_polling_rate_with_handle,
 };
 use driver::settings::{DpiStage, MouseSettings};
 use driver::{PlatformPreferencesDriver, PlatformUsbDriver, PreferencesDriver, UsbDriver};
@@ -22,6 +23,7 @@ struct RgbColor {
 #[serde(rename_all = "camelCase")]
 struct DeviceInfo {
     battery_level: u8,
+    is_charging: bool,
     polling_rate: u16,
     dpi_xy: [u16; 2],
     backlight_brightness: u8,
@@ -53,7 +55,8 @@ pub fn get_device_information(app: AppHandle) -> Option<String> {
                 Err(_) => return None,
             };
 
-        let battery_status = get_battery_status_with_handle(&mut usb_handle).unwrap_or(0);
+        let battery_status = get_battery_status_with_handle(&mut usb_handle).unwrap();
+        let is_charging = is_mouse_charging_with_handle(&mut usb_handle).unwrap();
 
         // Load saved settings to ensure UI is in sync with persistent state
         let settings = get_saved_settings(app).unwrap_or_default();
@@ -81,6 +84,7 @@ pub fn get_device_information(app: AppHandle) -> Option<String> {
 
         let device_info = DeviceInfo {
             battery_level: battery_status,
+            is_charging,
             polling_rate: settings.polling_rate,
             dpi_xy: [settings.dpi_x, settings.dpi_y],
             backlight_brightness: settings.brightness,
@@ -125,6 +129,17 @@ pub fn get_device_battery_status() -> Result<u8, String> {
     let res = unsafe { get_battery_status() };
     if let Ok(level) = res {
         let msg = format!("Battery status updated: {}%", level);
+        log::info!("{}", msg);
+        println!("{}", msg);
+    }
+    res
+}
+
+#[tauri::command]
+pub fn get_device_charging_status() -> Result<bool, String> {
+    let res = unsafe { is_mouse_charging() };
+    if let Ok(charging) = res {
+        let msg = format!("Charging status updated: {}", charging);
         log::info!("{}", msg);
         println!("{}", msg);
     }

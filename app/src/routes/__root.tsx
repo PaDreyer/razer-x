@@ -42,6 +42,10 @@ export const Route = createRootRoute({
                     console.log("Fetching battery level");
                     return invoke<number>("get_device_battery_status");
                 },
+                async getChargingStatus(): Promise<boolean> {
+                    console.log("Fetching charging status");
+                    return invoke<boolean>("get_device_charging_status");
+                },
                 async setBacklightBrightness(brightness: number): Promise<void> {
                     console.log(`Setting backlight brightness to ${brightness}`);
                     return invoke<void>("set_device_backlight_brightness", { brightness });

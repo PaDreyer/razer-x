@@ -1,5 +1,6 @@
 export interface IDeviceInformation {
     batteryLevel: number;
+    isCharging: boolean;
     pollingRate: PossiblePollingRates;
     dpiXy: [number, number];
     backlightBrightness: number;
@@ -30,6 +31,7 @@ export interface IDeviceManagerApi {
     getDpiStages(): Promise<Array<DpiStage>>;
     setDpiStages(stages: Array<DpiStage>): Promise<void>;
     getBatteryLevel(): Promise<number>;
+    getChargingStatus(): Promise<boolean>;
     setBacklightBrightness(brightness: number): Promise<void>;
     setBacklightColor(color: RGBColor): Promise<void>;
     getTargetOs(): Promise<TargetOs>;
