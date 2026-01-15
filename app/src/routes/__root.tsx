@@ -26,10 +26,11 @@ export const Route = createRootRoute({
                     console.log(`Setting mouse wheel inverted to ${inverted}`);
                     return invoke('set_mouse_wheel_inverted', { inverted });
                 },
-                async setSmartWheelEnabled(enabled: boolean): Promise<void> {
-                    console.log(`Setting smart wheel enabled to ${enabled}`);
-                    return invoke('set_device_smart_wheel', { enabled });
-                },
+                //                 // Smartwheel deactivated for now
+                //                 async setSmartWheelEnabled(enabled: boolean): Promise<void> {
+                //                     console.log(`Setting smart wheel enabled to ${enabled}`);
+                //                     return invoke('set_device_smart_wheel', { enabled });
+                //                 },
                 async setPollingRate(pollingRate: PossiblePollingRates): Promise<void> {
                     console.log(`Setting polling rate to ${pollingRate} Hz`);
                     return invoke('set_device_polling_rate', { pollingRate });
