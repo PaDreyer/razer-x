@@ -24,7 +24,7 @@ function Index() {
         return null;
     }
 
-    const { batteryLevel } = deviceManager.deviceInformation!;
+    const { batteryLevel, isCharging } = deviceManager.deviceInformation!;
 
     if (deviceManager.error.isError) {
         toast(`Fehler: ${deviceManager.error.message}`)
@@ -41,7 +41,7 @@ function Index() {
                     <h2 className="flex-grow text-4xl font-semibold mt-4 mb-8" >Razer Basilisk V3 Pro</h2>
                     {shouldShow &&
                         <div className="flex flex-grow gap-4 items-start justify-end">
-                            <BatteryStatus batteryLevel={batteryLevel} />
+                            <BatteryStatus batteryLevel={batteryLevel} isCharging={isCharging} />
                         </div>
                     }
                 </div>

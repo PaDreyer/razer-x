@@ -1,25 +1,27 @@
 export type BatteryStatusComponentProps = {
     batteryLevel: number;
+    isCharging: boolean;
 }
 
 export const BatteryStatus = (props: BatteryStatusComponentProps) => {
     return (
-        <div className="flex items-center gap-2" style={{ transform: "scale(0.75)" }}>
-            <svg width="72" height="36" className="block flex-shrink-0">
-                <rect x="0" y="7" width="60" height="22" rx="4" fill="#222" stroke="#444" strokeWidth="3" />
-                <rect x="60" y="14" width="7" height="8" rx="2" fill="#444" />
-                <rect
-                    x="3"
-                    y="10"
-                    width={Math.max(0, 54 * (props.batteryLevel / 100))}
-                    height="16"
-                    rx="3"
-                    fill="#22c55e"
-                />
-            </svg>
-            <span className="font-bold text-white text-xl leading-none select-none">
-                {props.batteryLevel ? `${props.batteryLevel}%` : "Unbekannt"}
-            </span>
+        <div className="flex items-center" style={{ transform: "scale(0.8)" }}>
+            <div className="w-8 flex items-center justify-center">
+                {props.isCharging && (
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="white"
+                        className="w-6 h-6 drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]"
+                    >
+                        <path d="M11 20V13H7L13 4V11H17L11 20Z" />
+                    </svg>
+                )}
+            </div>
+            <div className="flex items-center justify-center border-2 border-white rounded-md px-4 py-0.5 bg-gray-800/40 backdrop-blur-md min-w-[4.2rem] h-[24px] shadow-lg">
+                <span className="font-bold text-white text-base tracking-tight select-none">
+                    {props.batteryLevel ? `${props.batteryLevel}%` : "--%"}
+                </span>
+            </div>
         </div>
     );
 }

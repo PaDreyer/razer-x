@@ -12,7 +12,8 @@ use driver::{PlatformUsbDriver, PreferencesDriver, UsbDriver};
 use tauri_plugin_updater::UpdaterExt;
 use handler::{
     apply_saved_settings, get_device_backlight_brightness, get_device_battery_status,
-    get_device_dpi_stages, get_device_information, get_device_led_rgb, get_saved_settings,
+    get_device_charging_status, get_device_dpi_stages, get_device_information,
+    get_device_led_rgb, get_saved_settings,
     get_target_os, save_settings, set_device_backlight_brightness, set_device_dpi,
     set_device_dpi_stages, set_device_matrix_backlight_static, set_device_polling_rate,
     set_device_smart_wheel, set_mouse_wheel_inverted,
@@ -80,6 +81,7 @@ pub fn create_app() -> Application {
                 get_device_dpi_stages,
                 set_device_dpi_stages,
                 get_device_battery_status,
+                get_device_charging_status,
                 get_saved_settings,
                 save_settings,
             ])
