@@ -7,7 +7,6 @@ const Splashscreen: React.FC = () => {
     const [loadingStatus, setLoadingStatus] = useState<string>('Starting up...');
     const [updateProgress, setUpdateProgress] = useState<number>(0);
     const [updateStatus, setUpdateStatus] = useState<string | null>(null);
-    const [updateVersion, setUpdateVersion] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showProgress, setShowProgress] = useState<boolean>(false);
 
@@ -22,8 +21,7 @@ const Splashscreen: React.FC = () => {
             });
 
             // Listen for update events
-            const unlistenAvailable = await listen<string>('update-available', (event) => {
-                setUpdateVersion(event.payload);
+            const unlistenAvailable = await listen<string>('update-available', () => {
                 setShowProgress(true);
                 setUpdateStatus('Downloading update...');
                 setLoadingStatus('Downloading update...');
@@ -78,24 +76,22 @@ const Splashscreen: React.FC = () => {
                 <img src="/AppLogo.png" alt="RazerX Logo" className="logo" />
 
                 <div className="status-section">
-                    <p className="loading-text">{loadingStatus}</p>
-
-                    {showProgress && (
-                        <div className="update-section">
-                            {updateVersion && <p className="version">Version {updateVersion}</p>}
-
+                    {!showProgress ? (
+                        <p className="loading-text">{loadingStatus}</p>
+                    ) : (
+                        <div className="update-container">
+                            <p className="updating-title">Updating...</p>
                             <div className="progress-bar-bg">
                                 <div
                                     className="progress-bar-fill"
                                     style={{ width: `${updateProgress}%` }}
                                 />
                             </div>
-
-                            <div className="progress-info">
-                                <p className="progress-percentage">{Math.round(updateProgress)}%</p>
-                            </div>
-
-                            {updateStatus && <p className="update-status">{updateStatus}</p>}
+                            <p className="update-status">
+                                {updateStatus === 'Update complete!'
+                                    ? 'Update complete! The app will restart now.'
+                                    : updateStatus}
+                            </p>
                         </div>
                     )}
 
