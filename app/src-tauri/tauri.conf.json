@@ -21,7 +21,9 @@
         "decorations": false,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "url": "/splashscreen.html"
+        "url": "/splashscreen.html",
+        "backgroundColor": "#1a1f2e",
+        "visible": false
       },
       {
         "label": "main",
