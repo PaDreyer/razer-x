@@ -298,6 +298,13 @@ pub fn create_app() -> Application {
                                                 let _ = handle.emit("update-error", err_msg);
                                             } else {
                                                 let _ = handle.emit("update-status", "finished");
+                                                
+                                                // Wait 3 seconds to let the user see the "finished" state in the UI
+                                                let handle_clone = handle.clone();
+                                                tauri::async_runtime::spawn(async move {
+                                                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                                                    handle_clone.restart();
+                                                });
                                             }
                                         }
                                     }
