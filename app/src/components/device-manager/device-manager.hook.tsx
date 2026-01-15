@@ -16,7 +16,7 @@ export const useDeviceManager = () => {
         setDpiXy,
         setPollingRate,
         setMouseWheelInverted,
-        setSmartWheelEnabled,
+        //         setSmartWheelEnabled,
         getDpiStages,
         setDpiStages,
     } = useContext(DeviceManagerContext);
@@ -31,7 +31,7 @@ export const useDeviceManager = () => {
         setDpiXy,
         setPollingRate,
         setMouseWheelInverted,
-        setSmartWheelEnabled,
+        //         setSmartWheelEnabled,
         getDpiStages,
         setDpiStages,
     }

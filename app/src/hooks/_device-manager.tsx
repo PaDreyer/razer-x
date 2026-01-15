@@ -20,7 +20,7 @@ export function useDeviceManager(_: UseDeviceManagerProps) {
     const [backlightBrightness, setBacklightBrightness] = useState<number | undefined>();
     const [backlightColor, setBacklightColor] = useState<RGBColor | undefined>();
     const [matrixBehavior, setMatrixBehavior] = useState<PossibleMatrixBehaviors | undefined>();
-    const [smartWheelEnabled, setSmartWheelEnabled] = useState<boolean | undefined>();
+    //     const [smartWheelEnabled, setSmartWheelEnabled] = useState<boolean | undefined>();
     const [isError, setIsError] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setInitialized] = useState(false);
@@ -61,7 +61,7 @@ export function useDeviceManager(_: UseDeviceManagerProps) {
     useSyncEffect(backlightBrightness, "set_device_backlight_brightness", v => ({ brightness: v }));
     useSyncEffect(backlightColor, "set_device_backlight_color", v => ({ color: v }));
     useSyncEffect(matrixBehavior, "set_device_matrix_behavior", v => ({ behavior: v }));
-    useSyncEffect(smartWheelEnabled, "set_device_smartwheel_enabled", v => ({ enabled: v }));
+    //     useSyncEffect(smartWheelEnabled, "set_device_smartwheel_enabled", v => ({ enabled: v }));
 
     // Initial fetch
     useEffect(() => {
@@ -86,7 +86,7 @@ export function useDeviceManager(_: UseDeviceManagerProps) {
         backlightBrightness, setBacklightBrightness,
         backlightColor, setBacklightColor,
         matrixBehavior, setMatrixBehavior,
-        smartWheelEnabled, setSmartWheelEnabled,
+        //         smartWheelEnabled, setSmartWheelEnabled,
         isError,
         isLoading,
         isInitialized,

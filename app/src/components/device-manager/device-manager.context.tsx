@@ -16,7 +16,7 @@ export type DeviceManagerContextState = {
     setDpiXy: (dpiX: number, dpiY: number) => Promise<void>;
     setPollingRate: (pollingRate: number) => Promise<void>;
     setMouseWheelInverted: (inverted: boolean) => Promise<void>;
-    setSmartWheelEnabled: (enabled: boolean) => Promise<void>;
+    //     setSmartWheelEnabled: (enabled: boolean) => Promise<void>;
     getDpiStages: () => Promise<Array<DpiStage>>;
     setDpiStages: (stages: Array<DpiStage>) => Promise<void>;
 };

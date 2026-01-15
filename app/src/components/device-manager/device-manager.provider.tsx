@@ -74,13 +74,13 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
             .catch(handleError);
     }, [api]);
 
-    const setSmartWheelEnabled = useCallback((enabled: boolean) => {
-        return api.setSmartWheelEnabled(enabled)
-            .then(() => {
-                setDeviceInformation(prev => prev ? { ...prev, smartWheelEnabled: enabled } : null);
-            })
-            .catch(handleError);
-    }, [api]);
+    //     const setSmartWheelEnabled = useCallback((enabled: boolean) => {
+    //         return api.setSmartWheelEnabled(enabled)
+    //             .then(() => {
+    //                 setDeviceInformation(prev => prev ? { ...prev, smartWheelEnabled: enabled } : null);
+    //             })
+    //             .catch(handleError);
+    //     }, [api]);
 
     const setMouseWheelInverted = useCallback((inverted: boolean) => {
         return api.setMouseWheelInverted(inverted)
@@ -161,7 +161,7 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
         setDpiXy,
         setPollingRate,
         setMouseWheelInverted,
-        setSmartWheelEnabled,
+        //         setSmartWheelEnabled,
         getDpiStages,
         setDpiStages,
     };
