@@ -191,7 +191,7 @@ pub fn create_app() -> Application {
                 });
 
                 let open_ui =
-                    tauri::menu::MenuItem::with_id(app, "open_ui", "Open UI", true, None::<&str>)?;
+                    tauri::menu::MenuItem::with_id(app, "open_ui", "Open", true, None::<&str>)?;
                 let battery_status = tauri::menu::MenuItem::with_id(
                     app,
                     "battery",
@@ -221,10 +221,10 @@ pub fn create_app() -> Application {
                 let menu = tauri::menu::Menu::with_items(
                     app,
                     &[
-                        &open_ui,
                         &battery_status,
-                        &check_updates,
                         &separator,
+                        &open_ui,
+                        &check_updates,
                         &about,
                         &quit_i,
                     ],
@@ -243,16 +243,7 @@ pub fn create_app() -> Application {
                                 let _ = window.set_focus();
                             }
                         }
-                        "battery" => {
-                            let app_handle = app.clone();
-                            tauri::async_runtime::spawn(async move {
-                                if let Ok(settings) = get_saved_settings(app_handle) {
-                                    unsafe {
-                                        apply_saved_settings(&settings);
-                                    }
-                                }
-                            });
-                        }
+                        "battery" => {}
                         "check_updates" => {
                             let handle = app.clone();
                             tauri::async_runtime::spawn(async move {
