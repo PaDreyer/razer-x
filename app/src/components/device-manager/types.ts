@@ -35,7 +35,7 @@ export interface IDeviceManagerApi {
     setBacklightBrightness(brightness: number): Promise<void>;
     setBacklightColor(color: RGBColor): Promise<void>;
     getTargetOs(): Promise<TargetOs>;
-    setSmartWheelEnabled(enabled: boolean): Promise<void>;
+    setSmartWheelEnabled?(enabled: boolean): Promise<void>;
     setMouseWheelInverted(inverted: boolean): Promise<void>;
 }
 

@@ -100,29 +100,27 @@ pub fn get_device_information(app: AppHandle) -> Option<String> {
             dpi_stages: settings.dpi_stages,
         };
 
-        let info_msg = "Device information requested and retrieved";
-        log::info!("{}", info_msg);
-        println!("{}", info_msg);
+
 
         Some(serde_json::to_string(&device_info).unwrap())
     }
 }
 
-#[tauri::command]
-pub fn set_device_smart_wheel(app: AppHandle, enabled: bool) -> Result<(), String> {
-    // Note: Implementation of hardware protocol for smart wheel is pending
-    // For now, we persist the setting so the UI remains consistent
-    let res = update_settings(app, |s| s.smart_wheel_enabled = enabled);
-    if res.is_ok() {
-        let msg = format!(
-            "Smart Wheel setting successfully {} (Persistence only)",
-            if enabled { "enabled" } else { "disabled" }
-        );
-        log::info!("{}", msg);
-        println!("{}", msg);
-    }
-    res
-}
+// #[tauri::command]
+// pub fn set_device_smart_wheel(app: AppHandle, enabled: bool) -> Result<(), String> {
+//     // Note: Implementation of hardware protocol for smart wheel is pending
+//     // For now, we persist the setting so the UI remains consistent
+//     let res = update_settings(app, |s| s.smart_wheel_enabled = enabled);
+//     if res.is_ok() {
+//         let msg = format!(
+//             "Smart Wheel setting successfully {} (Persistence only)",
+//             if enabled { "enabled" } else { "disabled" }
+//         );
+//         log::info!("{}", msg);
+//         println!("{}", msg);
+//     }
+//     res
+// }
 
 #[tauri::command]
 pub fn get_device_battery_status() -> Result<u8, String> {
