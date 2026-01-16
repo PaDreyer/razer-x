@@ -194,6 +194,8 @@ pub fn create_app() -> Application {
 
                 let open_ui =
                     tauri::menu::MenuItem::with_id(app, "open_ui", "Open", true, None::<&str>)?;
+                let settings =
+                    tauri::menu::MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
                 let battery_status = tauri::menu::MenuItem::with_id(
                     app,
                     "battery",
@@ -226,6 +228,7 @@ pub fn create_app() -> Application {
                         &battery_status,
                         &separator,
                         &open_ui,
+                        &settings,
                         &check_updates,
                         &about,
                         &quit_i,
@@ -243,6 +246,13 @@ pub fn create_app() -> Application {
                             if let Some(window) = app.get_webview_window("main") {
                                 let _ = window.show();
                                 let _ = window.set_focus();
+                            }
+                        }
+                        "settings" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                                let _ = window.emit("navigate", serde_json::json!({ "path": "/settings" }));
                             }
                         }
                         "battery" => {}

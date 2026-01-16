@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet } from '@tanstack/react-router'
+import { createRootRoute, Outlet, useNavigate } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import "../App.css";
 import { Toaster } from "react-hot-toast";
@@ -10,9 +10,28 @@ import {
 } from "../components/device-manager";
 import { invoke } from "@tauri-apps/api/core";
 import UpdateOverlay from "../components/update-overlay/UpdateOverlay";
+import { useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
 
 export const Route = createRootRoute({
-    component: () => (
+    component: Root,
+})
+
+function Root() {
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const unlistenPromise = listen<{ path: string }>('navigate', (event) => {
+            console.log('Navigating to:', event.payload.path);
+            navigate({ to: event.payload.path as any });
+        });
+
+        return () => {
+            unlistenPromise.then((unlisten) => unlisten());
+        };
+    }, [navigate]);
+
+    return (
         <>
             <Toaster
                 position={"bottom-left"}
@@ -76,5 +95,5 @@ export const Route = createRootRoute({
             </DeviceManagerProvider>
             <TanStackRouterDevtools />
         </>
-    ),
-})
+    )
+}
