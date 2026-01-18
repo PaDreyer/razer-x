@@ -11,6 +11,7 @@ use std::{
 
 use super::{Device, UsbDriver};
 use crate::{DriverError, DriverResult};
+use bindings::{__errno_location, ioctl};
 
 // ioctl macros and constants for hidraw
 // These are calculated for 91 bytes: 1 byte Report ID + 90 bytes Razer Report
@@ -177,10 +178,10 @@ impl UsbDriver for LinuxUsbDriver {
         buf[0] = 0x00; // Report ID
         buf[1..].copy_from_slice(data);
 
-        let res = libc::ioctl(fd, HIDIOCSFEATURE, buf.as_ptr());
+        let res = ioctl(fd, HIDIOCSFEATURE, buf.as_ptr());
 
         if res < 0 {
-            let errno = *libc::__errno_location();
+            let errno = *__errno_location();
             eprintln!(
                 "DRIVER ERROR: HIDIOCSFEATURE ioctl failed with res: {}, errno: {}",
                 res, errno
@@ -215,10 +216,10 @@ impl UsbDriver for LinuxUsbDriver {
         let mut buf = vec![0u8; 91];
         buf[0] = 0x00; // Expected report ID 0
 
-        let res = libc::ioctl(fd, HIDIOCGFEATURE, buf.as_mut_ptr());
+        let res = ioctl(fd, HIDIOCGFEATURE, buf.as_mut_ptr());
 
         if res < 0 {
-            let errno = *libc::__errno_location();
+            let errno = *__errno_location();
             eprintln!(
                 "DRIVER ERROR: HIDIOCGFEATURE ioctl failed with res: {}, errno: {}",
                 res, errno

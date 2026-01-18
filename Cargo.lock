@@ -851,7 +851,6 @@ name = "driver"
 version = "0.3.0"
 dependencies = [
  "bindings",
- "libc",
  "log",
  "serde",
  "serde_json",

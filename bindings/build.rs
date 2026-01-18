@@ -59,9 +59,7 @@ fn configure_macos() -> (&'static str, bindgen::Builder) {
         .allowlist_var("KERN_SUCCESS")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
 
-    cc::Build::new()
-        .file(c_file)
-        .compile("usb_driver_macos");
+    cc::Build::new().file(c_file).compile("usb_driver_macos");
 
     println!("cargo:rustc-link-lib=framework=IOKit");
 
@@ -69,15 +67,17 @@ fn configure_macos() -> (&'static str, bindgen::Builder) {
 }
 
 fn configure_linux() -> (&'static str, bindgen::Builder) {
-    println!("cargo:rustc-link-lib=usb-1.0");
-    println!("cargo:rustc-link-search=native=/usr/lib");
-
     let header_path = "native/linux/usb_driver_linux.h";
+    //let c_file = "native/linux/usb_driver_linux.c";
+
     let builder = bindgen::Builder::default()
         .header(header_path)
-        .clang_arg("-I/usr/include")
-        .clang_arg("-I/usr/include/libusb-1.0")
+        .allowlist_function("ioctl")
+        .allowlist_function("__errno_location")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
+
+    //cc::Build::new().file(c_file).compile("usb_driver_linux");
+
     (header_path, builder)
 }
 
