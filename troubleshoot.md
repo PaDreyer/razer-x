@@ -16,3 +16,10 @@ KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532", ATTRS{idProduct
 Then run:
 sudo udevadm control --reload-rules && sudo udevadm trigger
 Re-plug the device and try again.
+
+### Installation
+
+#### Missing dependencies
+
+Maybe some dependencies (for ex. libyatana3 for tray menu) are missing. 
+When for example "dpkg -i RazerX_X.X.X_amd64.deb" fails with dependency errors, try running "sudo apt-get install --fix-broken" to fix them.
