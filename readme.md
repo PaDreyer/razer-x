@@ -5,7 +5,7 @@
 </p>
 
 <h3 align="center">
-  A cross-platform utility for controlling the Razer Basilisk V3 Pro on macOS (Linux support in progress) without requiring Razer Synapse.
+  A cross-platform utility for controlling the Razer Basilisk V3 Pro on macOS and Linux without requiring Razer Synapse.
 </h3>
 
 ## Features
@@ -48,7 +48,7 @@ The driver includes specialized handling for wireless mice where the USB receive
 
 ## Downloads
 
-Prebuilt binaries are available for **macOS** on the **[GitHub Releases](https://github.com/PaDreyer/razer-x/releases)** page. Linux support is currently in development and prebuilt binaries are not yet available.
+Prebuilt binaries are available for **macOS** and **Linux** on the **[GitHub Releases](https://github.com/PaDreyer/razer-x/releases)** page. 
 
 If you prefer to build from source or are contributing to the project, follow the instructions below.
 
@@ -130,7 +130,6 @@ The application automates several hardware configurations:
 
 ## Known Limitations
 
-- Linux support is currently in development
 - Hardware support is limited to the Basilisk V3 Pro
 - No Windows support planned
 
@@ -160,7 +159,7 @@ Implemented via USB HID control transfers:
 - IOHIDDevice event monitoring
 - Compatible with macOS 10.13+
 
-**Linux (In Development):**
+**Linux:**
 - libusb implementation
 - Hotplug event integration
 
