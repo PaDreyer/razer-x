@@ -38,6 +38,8 @@ impl Application {
                     api.prevent_exit();
                 }
             }
+            // This is needed for macOS to reopen the window from the dock
+            #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen {
                 has_visible_windows,
                 ..
@@ -339,11 +341,9 @@ pub fn create_app() -> Application {
                     .build(app)?;
 
                 let battery_status_c = battery_status.clone();
-                let app_handle = app.handle().clone();
                 _tray.on_tray_icon_event(move |_tray_handle, event| {
                     if let tauri::tray::TrayIconEvent::Click { .. } = event {
                         let battery_status_item = battery_status_c.clone();
-                        let handle = app_handle.clone();
                         tauri::async_runtime::spawn(async move {
                             match get_device_battery_status() {
                                 Ok(level) => {
