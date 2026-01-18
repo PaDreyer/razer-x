@@ -42,9 +42,9 @@ The driver includes specialized handling for wireless mice where the USB receive
 - Native IOKit integration
 - USB device access permissions
 
-### Linux (In Development - Not Currently Supported)
-- libusb 1.0+
-- udev rules for hardware access
+### Linux
+- Current mouse driver must be based on generic USB HID (HIDRaw)
+- udev rules for mouse device access
 
 ## Downloads
 

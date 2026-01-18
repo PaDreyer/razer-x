@@ -4,6 +4,9 @@ html,
 body,
 #root,
 :root {
+  /*linux window height fix with css class on index.tsx*/
+  height: 100%;
+
   user-select: none !important;
   -webkit-user-select: none !important;
   cursor: default !important;
@@ -54,7 +57,6 @@ select {
 
 .container {
   margin: 0;
-  padding-top: 10vh;
   display: flex;
   flex-direction: column;
   justify-content: center;

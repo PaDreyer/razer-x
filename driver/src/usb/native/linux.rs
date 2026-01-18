@@ -1,145 +1,198 @@
-// Neue Version des LinuxUsbDriver mit direkten libusb-Bindings (aus dem crate `bindings`)
+use std::os::raw::c_void;
+use std::os::unix::io::AsRawFd;
+use std::{
+    fs,
+    io::{Read, Write},
+    path::PathBuf,
+    sync::{Mutex, OnceLock},
+    thread,
+    time::Duration,
+};
 
-use std::{thread, time::Duration};
-use std::ffi::CStr;
-use std::ptr;
-use std::path::PathBuf;
+use super::{Device, UsbDriver};
+use crate::{DriverError, DriverResult};
 
-use super::{UsbDriver, Device};
-use crate::{DriverResult, DriverError};
-use bindings::{libusb_context, libusb_get_device_list, libusb_get_device_descriptor, libusb_device_handle, libusb_open, libusb_claim_interface, libusb_free_device_list, libusb_control_transfer, libusb_release_interface, libusb_close, libusb_init, libusb_device, libusb_exit};
+// ioctl macros and constants for hidraw
+// These are calculated for 91 bytes: 1 byte Report ID + 90 bytes Razer Report
+const HIDIOCSFEATURE: u64 = 0xC05B4806; // _IOWR('H', 0x06, 91)
+const HIDIOCGFEATURE: u64 = 0xC05B4807; // _IOWR('H', 0x07, 91)
 
-pub const LIBUSB_ENDPOINT_IN: u8 = 0x80;
-pub const LIBUSB_ENDPOINT_OUT: u8 = 0x00;
+type HotplugCallback = Box<dyn FnMut(&Device) + Send + 'static>;
 
-pub const LIBUSB_REQUEST_TYPE_STANDARD: u8 = 0x00;
-pub const LIBUSB_REQUEST_TYPE_CLASS: u8 = 0x20;
-pub const LIBUSB_REQUEST_TYPE_VENDOR: u8 = 0x40;
-
-pub const LIBUSB_RECIPIENT_DEVICE: u8 = 0x00;
-pub const LIBUSB_RECIPIENT_INTERFACE: u8 = 0x01;
-pub const LIBUSB_RECIPIENT_ENDPOINT: u8 = 0x02;
-pub const LIBUSB_RECIPIENT_OTHER: u8 = 0x03;
-
-pub struct LinuxUsbDriver {
-    handle: *mut libusb_device_handle,
-    vendor_id: u16,
-    product_id: u16,
-    interface_index: u8,
+struct HotplugRegistry {
+    connected_callbacks: Vec<(u16, u16, HotplugCallback)>,
+    disconnected_callbacks: Vec<(u16, u16, HotplugCallback)>,
 }
 
+static REGISTRY: OnceLock<Mutex<HotplugRegistry>> = OnceLock::new();
+
+fn get_registry() -> &'static Mutex<HotplugRegistry> {
+    REGISTRY.get_or_init(|| {
+        Mutex::new(HotplugRegistry {
+            connected_callbacks: Vec::new(),
+            disconnected_callbacks: Vec::new(),
+        })
+    })
+}
+
+pub struct LinuxUsbDriver {
+    file: fs::File,
+    _path: PathBuf,
+    _vendor_id: u16,
+    _product_id: u16,
+}
+
+unsafe impl Send for LinuxUsbDriver {}
+unsafe impl Sync for LinuxUsbDriver {}
+
 impl LinuxUsbDriver {
-    unsafe fn find_and_open_device(vendor_id: u16, product_id: u16) -> Result<*mut libusb_device_handle, String> {
-        let mut ctx: *mut libusb_context = ptr::null_mut();
-        if libusb_init(&mut ctx) != 0 {
-            return Err("Failed to init libusb".into());
-        }
+    fn find_hidraw_device(vendor_id: u16, product_id: u16) -> Result<PathBuf, String> {
+        let entries = fs::read_dir("/sys/class/hidraw").map_err(|e| e.to_string())?;
 
-        let mut list: *mut *mut libusb_device = ptr::null_mut();
-        let count = libusb_get_device_list(ctx, &mut list);
-        if count < 0 {
-            return Err("Failed to get device list".into());
-        }
+        let mut interface_0 = None;
 
-        for i in 0..count {
-            let device = *list.offset(i as isize);
-            let mut desc = std::mem::zeroed();
-            if libusb_get_device_descriptor(device, &mut desc) != 0 {
-                continue;
-            }
+        for entry in entries {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let name = entry.file_name().into_string().unwrap();
+            let uevent_path = entry.path().join("device/uevent");
 
-            if desc.idVendor == vendor_id && desc.idProduct == product_id {
-                let mut handle: *mut libusb_device_handle = ptr::null_mut();
-                if libusb_open(device, &mut handle) == 0 {
-                    libusb_claim_interface(handle, 0);
-                    libusb_free_device_list(list, 1);
-                    return Ok(handle);
+            if let Ok(uevent) = fs::read_to_string(&uevent_path) {
+                let vid_str = format!("{:04X}", vendor_id);
+                let pid_str = format!("{:04X}", product_id);
+
+                if uevent.to_uppercase().contains(&vid_str)
+                    && uevent.to_uppercase().contains(&pid_str)
+                {
+                    let path = PathBuf::from("/dev").join(name);
+
+                    if uevent.contains("input0") || uevent.contains(":1.0") {
+                        interface_0 = Some(path);
+                        break; // We only care about Interface 0
+                    }
                 }
             }
         }
 
-        libusb_free_device_list(list, 1);
-        Err("Device not found".to_string())
+        if let Some(path) = interface_0 {
+            return Ok(path);
+        }
+
+        eprintln!(
+            "DRIVER ERROR: Hidraw device not found for VID:{:04X} PID:{:04X}",
+            vendor_id, product_id
+        );
+        Err(format!(
+            "Hidraw device not found for VID:{:04X} PID:{:04X}",
+            vendor_id, product_id
+        ))
     }
 }
 
 impl UsbDriver for LinuxUsbDriver {
     unsafe fn new(vendor_id: u16, product_id: u16) -> DriverResult<Self> {
-        let handle = match Self::find_and_open_device(vendor_id, product_id) {
-            Ok(h) => h,
-            Err(e) => return Err(DriverError::DeviceNotFound(vendor_id, product_id)),
+        let path = match Self::find_hidraw_device(vendor_id, product_id) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("DRIVER ERROR: find_hidraw_device failed: {}", e);
+                return Err(DriverError::DeviceNotFound(vendor_id, product_id));
+            }
         };
 
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .map_err(|e| {
+                eprintln!("DRIVER ERROR: Failed to open {}: {}", path.display(), e);
+                DriverError::UsbError(format!("Failed to open {}: {}", path.display(), e))
+            })?;
+
         Ok(Self {
-            handle,
-            vendor_id,
-            product_id,
-            interface_index: 0,
+            file,
+            _path: path,
+            _vendor_id: vendor_id,
+            _product_id: product_id,
         })
     }
 
     unsafe fn list_devices() -> Vec<Device> {
         let mut devices = vec![];
-        let mut ctx: *mut libusb_context = ptr::null_mut();
-        if libusb_init(&mut ctx) != 0 {
-            return devices;
-        }
-
-        let mut list: *mut *mut libusb_device = ptr::null_mut();
-        let count = libusb_get_device_list(ctx, &mut list);
-        if count < 0 {
-            return devices;
-        }
-
-        for i in 0..count {
-            let device = *list.offset(i as isize);
-            let mut desc = std::mem::zeroed();
-            if libusb_get_device_descriptor(device, &mut desc) != 0 {
-                continue;
+        let entries = match fs::read_dir("/sys/class/hidraw") {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("DRIVER ERROR: Failed to read /sys/class/hidraw: {}", e);
+                return devices;
             }
+        };
 
-            let name = format!("{:04x}:{:04x}", desc.idVendor, desc.idProduct);
-            devices.push(Device {
-                name,
-                vendor_id: desc.idVendor as u32,
-                product_id: desc.idProduct as u32,
-            });
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let uevent_path = entry.path().join("device/uevent");
+                if let Ok(uevent) = fs::read_to_string(&uevent_path) {
+                    if let Some(hid_id_line) = uevent.lines().find(|l| l.starts_with("HID_ID=")) {
+                        let parts: Vec<&str> = hid_id_line[7..].split(':').collect();
+                        if parts.len() >= 3 {
+                            let vendor_id = u32::from_str_radix(parts[1], 16).unwrap_or(0);
+                            let product_id = u32::from_str_radix(parts[2], 16).unwrap_or(0);
+
+                            if vendor_id == 0x1532 {
+                                let name_line = uevent.lines().find(|l| l.starts_with("HID_NAME="));
+                                let name =
+                                    name_line.map(|l| l[9..].to_string()).unwrap_or_else(|| {
+                                        format!("{:04X}:{:04X}", vendor_id, product_id)
+                                    });
+
+                                if !devices
+                                    .iter()
+                                    .any(|d| d.vendor_id == vendor_id && d.product_id == product_id)
+                                {
+                                    devices.push(Device {
+                                        name,
+                                        vendor_id,
+                                        product_id,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-
-        libusb_free_device_list(list, 1);
-        libusb_exit(ctx);
 
         devices
     }
 
     unsafe fn send_control_msg(
         &mut self,
-        request: u8,
-        value: u16,
-        index: u16,
+        _request: u8,
+        _value: u16,
+        _index: u16,
         data: &[u8],
         min_wait: Duration,
     ) -> DriverResult<()> {
-        let bm_request_type = 0x21;
-        let timeout = 1000;
+        let fd = self.file.as_raw_fd();
 
-        let transferred = libusb_control_transfer(
-            self.handle,
-            bm_request_type,
-            request,
-            value,
-            index,
-            data.as_ptr() as *mut u8,
-            data.len() as u16,
-            timeout,
-        );
+        // HIDIOCSFEATURE(91) - including report ID
+        let mut buf = vec![0u8; data.len() + 1];
+        buf[0] = 0x00; // Report ID
+        buf[1..].copy_from_slice(data);
 
-        if transferred < 0 {
-            return Err(DriverError::UsbError(format!("Control transfer failed: code {}", transferred)));
-        }
+        let res = libc::ioctl(fd, HIDIOCSFEATURE, buf.as_ptr());
 
-        if transferred != data.len() as i32 {
-            return Err(DriverError::IncompleteTransfer);
+        if res < 0 {
+            let errno = *libc::__errno_location();
+            eprintln!(
+                "DRIVER ERROR: HIDIOCSFEATURE ioctl failed with res: {}, errno: {}",
+                res, errno
+            );
+            // Fallback: simple write()
+            match self.file.write_all(&buf) {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("DRIVER ERROR: hidraw write fallback failed: {}", e);
+                    return Err(DriverError::UsbError(format!("Hidraw write failed: {}", e)));
+                }
+            }
         }
 
         thread::sleep(min_wait);
@@ -149,60 +202,86 @@ impl UsbDriver for LinuxUsbDriver {
     unsafe fn get_feature_report(
         &mut self,
         data: &[u8],
-        index: u16,
+        _index: u16,
         min_wait: Duration,
         response_length: u16,
     ) -> DriverResult<Vec<u8>> {
-        let _ = self.send_control_msg(0x09, 0x300, index, data, min_wait);
+        // First send the command
+        self.send_control_msg(0x09, 0x300, 0, data, min_wait)?;
 
-        let bm_request_type = 0xA1;
-        let mut buffer = vec![0u8; response_length as usize];
+        let fd = self.file.as_raw_fd();
 
-        let read = libusb_control_transfer(
-            self.handle,
-            bm_request_type,
-            0x01, // HID_GET_REPORT
-            0x300,
-            index,
-            buffer.as_mut_ptr(),
-            response_length,
-            10000,
-        );
+        // HIDIOCGFEATURE(91)
+        let mut buf = vec![0u8; 91];
+        buf[0] = 0x00; // Expected report ID 0
 
-        if read < 0 {
-            return Err(DriverError::UsbError(format!("read_control failed: code {}", read)));
+        let res = libc::ioctl(fd, HIDIOCGFEATURE, buf.as_mut_ptr());
+
+        if res < 0 {
+            let errno = *libc::__errno_location();
+            eprintln!(
+                "DRIVER ERROR: HIDIOCGFEATURE ioctl failed with res: {}, errno: {}",
+                res, errno
+            );
+            // Fallback: simple read()
+            let mut read_buf = vec![0u8; response_length as usize + 1];
+            match self.file.read(&mut read_buf) {
+                Ok(n) => {
+                    thread::sleep(min_wait);
+                    return Ok(read_buf[1..n].to_vec());
+                }
+                Err(e) => {
+                    eprintln!("DRIVER ERROR: hidraw read fallback failed: {}", e);
+                    return Err(DriverError::UsbError(format!("Hidraw read failed: {}", e)));
+                }
+            }
         }
 
-        Ok(buffer[..read as usize].to_vec())
+        thread::sleep(min_wait);
+        Ok(buf[1..].to_vec())
     }
 
     unsafe fn close(&mut self) -> DriverResult<()> {
-        let rc = libusb_release_interface(self.handle, self.interface_index as i32);
-        if rc != 0 {
-            return Err(DriverError::UsbError(format!("Failed to release interface: code {}", rc)));
-        }
-        libusb_close(self.handle);
+        // File closed on drop
         Ok(())
     }
-    
-    fn on_device_connected<F>(_vendor_id: u16, _product_id: u16, _callback: F) -> DriverResult<()>
+
+    fn on_device_connected<F>(vendor_id: u16, product_id: u16, callback: F) -> DriverResult<()>
     where
         F: FnMut(&Device) + Send + 'static,
     {
-         Err(DriverError::NotImplemented("Linux hotplug not implemented yet".into()))
+        let mut registry = get_registry().lock().unwrap();
+        registry
+            .connected_callbacks
+            .push((vendor_id, product_id, Box::new(callback)));
+        Ok(())
     }
 
-    fn on_device_disconnected<F>(_vendor_id: u16, _product_id: u16, _callback: F) -> DriverResult<()>
+    fn on_device_disconnected<F>(vendor_id: u16, product_id: u16, callback: F) -> DriverResult<()>
     where
         F: FnMut(&Device) + Send + 'static,
     {
-         Err(DriverError::NotImplemented("Linux hotplug not implemented yet".into()))
+        let mut registry = get_registry().lock().unwrap();
+        registry
+            .disconnected_callbacks
+            .push((vendor_id, product_id, Box::new(callback)));
+        Ok(())
     }
 
     fn on_state_changed<F>(&mut self, _callback: F) -> DriverResult<()>
     where
         F: FnMut(&Device, &mut c_void) + Send + 'static,
     {
-         Err(DriverError::NotImplemented("Linux state changed not implemented yet".into()))
+        Err(DriverError::NotImplemented(
+            "State changes not implemented for hidraw".into(),
+        ))
+    }
+}
+
+impl Drop for LinuxUsbDriver {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = self.close();
+        }
     }
 }
