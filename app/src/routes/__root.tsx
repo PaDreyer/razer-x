@@ -89,6 +89,14 @@ function Root() {
                     console.log("Fetching device information");
                     return data;
                 },
+                async getSavedSettings(): Promise<import("../components/device-manager").IAppSettings> {
+                    console.log("Fetching saved settings");
+                    return invoke<import("../components/device-manager").IAppSettings>('get_saved_settings');
+                },
+                async saveSettings(settings: import("../components/device-manager").IAppSettings): Promise<void> {
+                    console.log("Saving settings", settings);
+                    return invoke('save_settings', { settings });
+                },
             }}>
                 <Outlet />
                 <UpdateOverlay />

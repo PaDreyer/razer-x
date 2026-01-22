@@ -98,11 +98,11 @@ export const DpiSettings = () => {
                 />
             </div>
 
-            <div className="mx-2 my-2 flex flex-col gap-4">
+            <div className="mx-2 flex flex-col gap-2">
                 {!useDpiStages ? (
                     // Simplified View: Single Slider
                     <div className="flex flex-row items-center gap-4 my-2">
-                        <div className="flex w-full rounded-lg shadow-md bg-gray-700 flex-row items-center justify-around">
+                        <div className="flex w-full rounded-2xl border border-white/5 bg-white/[0.03] flex-row items-center justify-around">
                             <div className="flex w-10/12">
                                 <DpiSlider
                                     id="single-dpi-slider"
@@ -130,16 +130,16 @@ export const DpiSettings = () => {
                         const isActive = stageId === activeDpiStage;
 
                         return (
-                            <div className="flex flex-row items-center gap-4 my-2" key={stageId}>
+                            <div className="flex flex-row items-center gap-4 my-1.5" key={stageId}>
                                 <div
-                                    className={`flex items-center justify-center border bg-gray-700 text-gray-900 hover:text-white font-semibold shadow rounded-full w-12 h-12 flex-shrink-0 transition-all ${isActive ? "border-white text-white cursor-default" : "border-gray-700 hover:scale-110 cursor-pointer"}`}
+                                    className={`flex items-center justify-center border font-bold shadow rounded-full w-12 h-12 flex-shrink-0 transition-all ${isActive ? "border-blue-500 bg-blue-500/20 text-white cursor-default" : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-white hover:scale-110 cursor-pointer"}`}
                                     onClick={() => handleStageClick(stage.stage)}
                                 >
-                                    <div className="flex text-4xl font-bold select-none">
+                                    <div className="flex text-2xl font-black select-none">
                                         {stageId}
                                     </div>
                                 </div>
-                                <div className="flex w-full rounded-lg shadow-md bg-gray-700 flex-row items-center justify-around">
+                                <div className="flex w-full rounded-2xl border border-white/5 bg-white/[0.03] flex-row items-center justify-around">
                                     <div className="flex w-10/12">
                                         <DpiSlider
                                             id={`${stageId}-dpi-slider`}

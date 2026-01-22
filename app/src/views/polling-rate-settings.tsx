@@ -1,5 +1,5 @@
-import {PossiblePollingRates, useDeviceManager} from "../components/device-manager";
-import {NormalButton} from "../components/button";
+import { PossiblePollingRates, useDeviceManager } from "../components/device-manager";
+import { NormalButton } from "../components/button";
 
 export const PollingRateSettings = () => {
     const deviceManager = useDeviceManager();
@@ -32,7 +32,7 @@ export const PollingRateSettings = () => {
 
     return (
         <div>
-            <div className="flex flex-row gap-4 mt-2">
+            <div className="flex flex-col gap-3 mt-2">
                 {[125, 500, 1000].map(rate => (
                     <NormalButton
                         key={rate}

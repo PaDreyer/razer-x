@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RgbColorPicker } from "react-colorful";
 import "./popover-colorpicker.css";
 import useClickOutside from "../../hooks/use-click-outside";
@@ -38,26 +38,28 @@ export const PopoverColorPicker = (props: PopoverColorpickerComponentProps) => {
     return (
         <div className={computedClassName}>
             <div className="picker">
-                <div
-                    className="swatch"
-                    style={{ backgroundColor: convertRgbToString(props.color) }}
-                    onClick={() => toggle(true)}
-                />
+                <div className="relative">
+                    <div
+                        className="swatch"
+                        style={{ backgroundColor: convertRgbToString(props.color) }}
+                        onClick={() => toggle(true)}
+                    />
 
-                {isOpen && (
-                    <div className="popover bg-gray-700" ref={popover}>
-                        <RgbColorPicker color={selectedColor} onChange={setSelectedColor} />
+                    {isOpen && (
+                        <div className="popover" ref={popover}>
+                            <RgbColorPicker color={selectedColor} onChange={setSelectedColor} />
 
-                        <div className="popover-footer">
-                            <button className="btn btn-secondary" onClick={close}>
-                                Close
-                            </button>
-                            <button className="btn btn-primary" onClick={() => props.onChange(selectedColor)}>
-                                Apply
-                            </button>
+                            <div className="popover-footer">
+                                <button className="btn btn-secondary" onClick={close}>
+                                    Close
+                                </button>
+                                <button className="btn btn-primary" onClick={() => props.onChange(selectedColor)}>
+                                    Apply
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 {props.presetColors &&
                     <div className="picker__swatches">
@@ -72,7 +74,6 @@ export const PopoverColorPicker = (props: PopoverColorpickerComponentProps) => {
                     </div>
                 }
             </div>
-
         </div>
     );
 };

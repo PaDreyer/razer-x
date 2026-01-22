@@ -51,7 +51,7 @@ export const DpiSlider = memo(function DpiSlider(props: DpiSliderComponentProps)
     }, [propsOnChange]);
 
     return (
-        <div className="w-full flex flex-col gap-2 p-4 px-6 mb-2">
+        <div className="w-full flex flex-col gap-2 py-2 px-6">
             <div className="w-full flex flex-row gap-4 items-center">
                 <p className="select-none cursor-default w-20">{individualXY ? `DPI X` : `DPI X/Y`}</p>
                 <SliderExtended
