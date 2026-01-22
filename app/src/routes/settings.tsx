@@ -50,7 +50,10 @@ function SettingsPage() {
     const [version, setVersion] = useState<string>('...');
 
     useEffect(() => {
-        getVersion().then(setVersion).catch((e) => console.log(e) || setVersion('Unknown'));
+        getVersion().then(setVersion).catch((e) => {
+            console.error(e);
+            setVersion('Unknown');
+        });
     }, []);
 
     if (!deviceManager) return null;
