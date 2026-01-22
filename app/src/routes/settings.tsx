@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useDeviceManager } from "../components/device-manager";
 import { Checkbox } from "../components/checkbox/checkbox";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { getVersion } from '@tauri-apps/api/app';
 
 export const Route = createFileRoute('/settings')({
     component: SettingsPage,
@@ -46,6 +47,11 @@ function SettingsGroup({ title, children }: { title?: string; children: ReactNod
 
 function SettingsPage() {
     const deviceManager = useDeviceManager();
+    const [version, setVersion] = useState<string>('...');
+
+    useEffect(() => {
+        getVersion().then(setVersion).catch((e) => console.log(e) || setVersion('Unknown'));
+    }, []);
 
     if (!deviceManager) return null;
 
@@ -123,7 +129,7 @@ function SettingsPage() {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
                             }
                             action={
-                                <span className="text-sm font-medium text-gray-500 mr-2">0.2.1</span>
+                                <span className="text-sm font-medium text-gray-500 mr-2">{version}</span>
                             }
                         />
                     </SettingsGroup>
