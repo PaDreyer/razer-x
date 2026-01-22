@@ -47,16 +47,34 @@ pub unsafe fn ensure_mouse_exists() -> bool {
 }
 
 #[tauri::command]
-pub fn get_device_information(app: AppHandle) -> Option<String> {
+pub fn get_device_information(app: AppHandle) -> Result<String, String> {
     unsafe {
         let mut usb_handle =
             match PlatformUsbDriver::new(RAZER_USB_VENDOR_ID, RAZER_BASILISK_V3_PRO_ID) {
                 Ok(h) => h,
-                Err(_) => return None,
+                Err(e) => {
+                    let err_msg = format!("Failed to open USB device: {}. Please check if the device is connected and you have the necessary permissions.", e);
+                    error!("{}", err_msg);
+                    return Err(err_msg);
+                }
             };
 
-        let battery_status = get_battery_status_with_handle(&mut usb_handle).unwrap();
-        let is_charging = is_mouse_charging_with_handle(&mut usb_handle).unwrap();
+        let battery_status = match get_battery_status_with_handle(&mut usb_handle) {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to get battery status: {}", e);
+                0 // Fallback or return error? Let's return error for now to be safe
+                // return Err(format!("Failed to get battery status: {}", e));
+            }
+        };
+
+        let is_charging = match is_mouse_charging_with_handle(&mut usb_handle) {
+            Ok(c) => c,
+            Err(e) => {
+                error!("Failed to get charging status: {}", e);
+                false
+            }
+        };
 
         // Load saved settings to ensure UI is in sync with persistent state
         let settings = get_saved_settings(app).unwrap_or_default();
@@ -100,9 +118,7 @@ pub fn get_device_information(app: AppHandle) -> Option<String> {
             dpi_stages: settings.dpi_stages,
         };
 
-
-
-        Some(serde_json::to_string(&device_info).unwrap())
+        serde_json::to_string(&device_info).map_err(|e| format!("Failed to serialize device info: {}", e))
     }
 }
 

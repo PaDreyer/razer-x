@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import toast from "react-hot-toast";
 import { useDeviceManager } from "../components/device-manager";
 import { DpiSettings } from "../views/dpi-settings.tsx";
 import { Panel } from "../components/panel";
@@ -19,15 +18,48 @@ function Index() {
         return null;
     }
 
-    if (!deviceManager.deviceInformation) {
-        return null;
+    if (deviceManager.isLoading && !deviceManager.isInitialized) {
+        return (
+            <div className="h-screen w-full bg-[#0a0a0a] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                    <p className="text-white/50 animate-pulse">Initializing Device...</p>
+                </div>
+            </div>
+        );
     }
-
-    const { batteryLevel, isCharging } = deviceManager.deviceInformation!;
 
     if (deviceManager.error.isError) {
-        toast(`Fehler: ${deviceManager.error.message}`)
+        return (
+            <div className="h-screen w-full bg-[#0a0a0a] flex items-center justify-center p-6 text-center">
+                <div className="max-w-md p-8 rounded-3xl bg-white/5 border border-white/10 shadow-2xl backdrop-blur-xl">
+                    <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                    </div>
+                    <h2 className="text-2xl font-bold mb-4">Initialisierungsfehler</h2>
+                    <p className="text-white/60 mb-8 leading-relaxed">
+                        {deviceManager.error.message}
+                    </p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-8 py-3 bg-white/10 hover:bg-white/20 transition-all rounded-xl font-bold active:scale-95"
+                    >
+                        Erneut versuchen
+                    </button>
+                </div>
+            </div>
+        );
     }
+
+    if (!deviceManager.deviceInformation) {
+        return (
+            <div className="h-screen w-full bg-[#0a0a0a] flex items-center justify-center text-white/50">
+                Warte auf Geräte-Informationen...
+            </div>
+        );
+    }
+
+    const { batteryLevel, isCharging } = deviceManager.deviceInformation;
 
     const shouldShow = deviceManager.isInitialized && !deviceManager.error.isError;
 
