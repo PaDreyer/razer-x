@@ -15,6 +15,7 @@
 - **Polling Rate** - Adjust hardware polling frequency (125Hz, 500Hz, 1000Hz)
 - **RGB Lighting** - Background lighting color and brightness control
 - **Battery Monitoring** - Real-time battery level status
+- **Battery Charging** - Real-time battery charging status
 - **Scroll Direction** - Dynamic scroll behavior management
 
 ### System Integration
@@ -22,7 +23,7 @@
 - **Auto-Provisioning** - Automatic settings application upon device connection
 - **Device Detection** - Native hotplug monitoring for receivers and wired connections
 - **Power State Detection** - Intelligent monitoring of wireless mouse power states
-- **Auto-Update** - Integrated software updates (via GitHub Releases built by a custom GitHub Actions pipeline)
+- **Auto-Update** - optional software updates (via GitHub Releases built by a custom GitHub Actions pipeline)
 
 ## Wireless Power Management
 

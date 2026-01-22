@@ -49,7 +49,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "app"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "driver",
  "log",
@@ -274,7 +274,7 @@ dependencies = [
 
 [[package]]
 name = "bindings"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bindgen",
  "cc",
@@ -848,7 +848,7 @@ dependencies = [
 
 [[package]]
 name = "driver"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bindings",
  "log",
@@ -3143,7 +3143,7 @@ checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 
 [[package]]
 name = "razer"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "redox_syscall"
