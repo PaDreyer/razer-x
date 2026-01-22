@@ -12,6 +12,7 @@
     "core:window:allow-close",
     "core:window:allow-set-title",
     "core:event:default",
-    "core:event:allow-emit"
+    "core:event:allow-emit",
+    "core:app:allow-version"
   ]
 }

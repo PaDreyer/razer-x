@@ -219,15 +219,6 @@ pub fn create_app() -> Application {
                     None::<&str>,
                 )?;
                 let separator = tauri::menu::PredefinedMenuItem::separator(app)?;
-                let about = tauri::menu::PredefinedMenuItem::about(
-                    app,
-                    Some("About RazerX"),
-                    Some(tauri::menu::AboutMetadata {
-                        name: Some("RazerX".to_string()),
-                        copyright: Some("Copyright PLDreyer".to_string()),
-                        ..Default::default()
-                    }),
-                )?;
                 let quit_i =
                     tauri::menu::MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
                 let menu = tauri::menu::Menu::with_items(
@@ -238,7 +229,6 @@ pub fn create_app() -> Application {
                         &open_ui,
                         &settings,
                         &check_updates,
-                        &about,
                         &quit_i,
                     ],
                 )?;
