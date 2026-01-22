@@ -72,30 +72,38 @@ const Splashscreen: React.FC = () => {
 
     return (
         <div className="splashscreen">
-            <div className="splashscreen-content">
-                <img src="/AppLogo.png" alt="RazerX Logo" className="logo" />
+            {/* Ambient Background Blobs - Mirroring main page for consistency */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-0 -left-4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob"></div>
+                <div className="absolute top-0 -right-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob animation-delay-2000"></div>
+            </div>
 
-                <div className="status-section">
-                    {!showProgress ? (
-                        <p className="loading-text">{loadingStatus}</p>
-                    ) : (
-                        <div className="update-container">
-                            <p className="updating-title">Updating...</p>
-                            <div className="progress-bar-bg">
-                                <div
-                                    className="progress-bar-fill"
-                                    style={{ width: `${updateProgress}%` }}
-                                />
+            <div className="splash-overlay">
+                <div className="splashscreen-content">
+                    <img src="/AppLogo.png" alt="RazerX Logo" className="logo" />
+
+                    <div className="status-section">
+                        {!showProgress ? (
+                            <p className="loading-text">{loadingStatus}</p>
+                        ) : (
+                            <div className="update-container">
+                                <p className="updating-title">Updating...</p>
+                                <div className="progress-bar-bg">
+                                    <div
+                                        className="progress-bar-fill"
+                                        style={{ width: `${updateProgress}%` }}
+                                    />
+                                </div>
+                                <p className="update-status">
+                                    {updateStatus === 'Update complete!'
+                                        ? 'Update complete! The app will restart now.'
+                                        : updateStatus}
+                                </p>
                             </div>
-                            <p className="update-status">
-                                {updateStatus === 'Update complete!'
-                                    ? 'Update complete! The app will restart now.'
-                                    : updateStatus}
-                            </p>
-                        </div>
-                    )}
+                        )}
 
-                    {error && <p className="error-text">{error}</p>}
+                        {error && <p className="error-text">{error}</p>}
+                    </div>
                 </div>
             </div>
         </div>

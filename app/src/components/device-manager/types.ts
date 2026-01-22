@@ -24,6 +24,18 @@ export type DpiStage = {
     active: boolean
 }
 
+export interface IAppSettings {
+    dpiX: number;
+    dpiY: number;
+    pollingRate: PossiblePollingRates;
+    rgbColor: [number, number, number];
+    brightness: number;
+    scrollInverted: boolean;
+    smartWheelEnabled: boolean;
+    autoUpdate: boolean;
+    dpiStages: Array<DpiStage>;
+}
+
 export interface IDeviceManagerApi {
     getDeviceInformation(): Promise<IDeviceInformation>;
     setPollingRate(pollingRate: PossiblePollingRates): Promise<void>;
@@ -37,6 +49,8 @@ export interface IDeviceManagerApi {
     getTargetOs(): Promise<TargetOs>;
     setSmartWheelEnabled?(enabled: boolean): Promise<void>;
     setMouseWheelInverted(inverted: boolean): Promise<void>;
+    getSavedSettings(): Promise<IAppSettings>;
+    saveSettings(settings: IAppSettings): Promise<void>;
 }
 
 export type OkState = {

@@ -13,4 +13,5 @@ export type {
     FailureState,
     IDeviceInformation,
     DpiStage,
+    IAppSettings,
 } from "./types.ts";

@@ -1,52 +1,110 @@
 .picker {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
     position: relative;
 }
 
 .swatch {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    border: 3px solid #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.swatch:hover {
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
 .popover {
-    z-index: 2;
+    z-index: 100;
     display: flex;
     flex-direction: row;
     position: absolute;
-    top: calc(100% + 2px);
+    top: calc(100% + 12px);
     left: 0;
-    border-radius: 9px;
-    padding: 20px 0 20px 20px;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    background: rgba(15, 15, 15, 0.92) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
 }
 
 .popover-footer {
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
-    align-items: center;
-    padding: 10px 20px;
+    justify-content: center;
+    gap: 12px;
+    padding-left: 20px;
+}
+
+.popover-footer .btn {
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 13px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.popover-footer .btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: #999;
+}
+
+.popover-footer .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.popover-footer .btn-primary {
+    background: rgba(59, 130, 246, 0.2);
+    color: #fff;
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.popover-footer .btn-primary:hover {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2);
+    transform: translateY(-1px);
 }
 
 .picker__swatches {
     position: relative;
     display: flex;
-    margin: 0 5px 0 15px;
-    #padding: 12px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    margin: 0;
+    align-items: center;
+    gap: 4px;
 }
 
 .picker__swatch {
-    width: 24px;
-    height: 24px;
-    margin: 3px;
-    border: none;
+    width: 26px;
+    height: 26px;
+    margin: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 0;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     outline: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.picker__swatch:hover {
+    transform: scale(1.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }

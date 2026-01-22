@@ -1,8 +1,8 @@
-import {SliderComponentHandle, SliderExtended} from "../components/slider-extended";
-import {PopoverColorPicker} from "../components/popover-colorpicker";
-import {RGBColor, useDeviceManager} from "../components/device-manager";
-import {useCallback, useRef} from "react";
-import {NormalButton} from "../components/button";
+import { SliderComponentHandle, SliderExtended } from "../components/slider-extended";
+import { RGBColor, useDeviceManager } from "../components/device-manager";
+import { useCallback, useRef } from "react";
+import { NormalButton } from "../components/button";
+import { PopoverColorPicker } from "../components/popover-colorpicker";
 
 export const RgbSettings = () => {
     const sliderRef = useRef<SliderComponentHandle>(null);
@@ -41,48 +41,49 @@ export const RgbSettings = () => {
     } = deviceInformation!;
 
     return (
-        <div className="flex-1 flex flex-col justify-center bg-gray-800 rounded-lg">
-            <h4 className="font-medium text-gray-200">
-                Helligkeit
-            </h4>
-            <div className="flex flex-col justify-between w-full px-4 mb-1">
-                <SliderExtended
-                    ref={sliderRef}
-                    debounceDelay={500}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onChange={value => setBacklightBrightness(value)}
-                    className="flex-1"
-                    initialValue={backlightBrightness}
-                />
+        <div className="flex-1 flex flex-row items-center justify-around w-full gap-8 h-full">
+            <div className="flex flex-col items-start min-w-[240px] justify-center h-full">
+                <div className="w-full px-2">
+                    <SliderExtended
+                        ref={sliderRef}
+                        debounceDelay={500}
+                        min={0}
+                        max={100}
+                        step={1}
+                        onChange={value => setBacklightBrightness(value)}
+                        className="w-full"
+                        initialValue={backlightBrightness}
+                    />
 
-                <div className="flex justify-center gap-3 mt-6 mb-1 flex-wrap">
-                    {[0, 5, 25, 75, 100].map(val => <NormalButton
-                        key={val}
-                        text={`${val}%`}
-                        onClick={() => setSliderValue(val)}
-                        active={backlightBrightness === val}
-                        />
-                    )}
+                    <div className="flex flex-row justify-between gap-2 mt-8">
+                        {[0, 5, 25, 75, 100].map(val => (
+                            <NormalButton
+                                key={val}
+                                text={`${val}%`}
+                                onClick={() => setSliderValue(val)}
+                                active={backlightBrightness === val}
+                            />
+                        ))}
+                    </div>
                 </div>
             </div>
 
-            <hr className="my-4 text-gray-700 border h-1" bg-gray-700/>
-            <h4 className="font-medium text-gray-200 mb-1">
-                Farbe
-            </h4>
-            <PopoverColorPicker
-                className="mb-4"
-                color={backlightColor}
-                onChange={(color) => setBacklightColor(color as RGBColor)}
-                presetColors={[
-                    {r: 255, g: 255, b: 255},
-                    {r: 0, g: 255, b: 22},
-                    {r: 0, g: 15, b: 255},
-                    {r: 255, g: 0, b: 0},
-                ]}
-            />
+            {/* Vertical Divider */}
+            <div className="h-2/3 w-px bg-white/10" />
+
+            {/* Right Side: Color Selection */}
+            <div className="flex flex-col items-center justify-center h-full">
+                <PopoverColorPicker
+                    color={backlightColor}
+                    onChange={(color) => setBacklightColor(color as RGBColor)}
+                    presetColors={[
+                        { r: 255, g: 255, b: 255 },
+                        { r: 0, g: 255, b: 22 },
+                        { r: 0, g: 15, b: 255 },
+                        { r: 255, g: 0, b: 0 },
+                    ]}
+                />
+            </div>
         </div>
     )
 }

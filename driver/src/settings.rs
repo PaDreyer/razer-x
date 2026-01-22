@@ -29,6 +29,8 @@ pub struct MouseSettings {
     pub scroll_inverted: bool,
     #[serde(default = "default_smart_wheel_enabled")]
     pub smart_wheel_enabled: bool,
+    #[serde(default = "default_auto_update")]
+    pub auto_update: bool,
     #[serde(default = "default_dpi_stages")]
     pub dpi_stages: Vec<DpiStage>,
 }
@@ -40,6 +42,7 @@ fn default_rgb_color() -> [u8; 3] { [255, 255, 255] }
 fn default_brightness() -> u8 { 100 }
 fn default_scroll_inverted() -> bool { false }
 fn default_smart_wheel_enabled() -> bool { false }
+fn default_auto_update() -> bool { false }
 fn default_dpi_stages() -> Vec<DpiStage> {
     vec![
         DpiStage { dpi_x: 400, dpi_y: 400, stage: 1, active: false },
@@ -60,6 +63,7 @@ impl Default for MouseSettings {
             brightness: 100,
             scroll_inverted: false,
             smart_wheel_enabled: false,
+            auto_update: false,
             dpi_stages: vec![
                 DpiStage { dpi_x: 400, dpi_y: 400, stage: 1, active: false },
                 DpiStage { dpi_x: 800, dpi_y: 800, stage: 2, active: false },
@@ -120,6 +124,7 @@ mod tests {
         assert_eq!(settings.brightness, 100);
         assert_eq!(settings.scroll_inverted, false);
         assert_eq!(settings.smart_wheel_enabled, false);
+        assert_eq!(settings.auto_update, false);
         assert_eq!(settings.dpi_stages.len(), 5);
     }
 
@@ -140,6 +145,7 @@ mod tests {
             brightness: 50,
             scroll_inverted: true,
             smart_wheel_enabled: false,
+            auto_update: true,
             dpi_stages: vec![],
         };
 
@@ -156,6 +162,7 @@ mod tests {
         assert_eq!(loaded_settings.rgb_color, [255, 0, 0]);
         assert_eq!(loaded_settings.brightness, 50);
         assert_eq!(loaded_settings.scroll_inverted, true);
+        assert_eq!(loaded_settings.auto_update, true);
 
         // Clean up
         let _ = fs::remove_file(&settings_path);

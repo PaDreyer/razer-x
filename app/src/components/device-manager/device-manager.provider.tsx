@@ -27,6 +27,7 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
     });
     const [isInitialized, setIsInitialized] = useState<boolean>(false);
     const [deviceInformation, setDeviceInformation] = useState<IDeviceInformation | null>(null);
+    const [appSettings, setAppSettings] = useState<import("./types.ts").IAppSettings | null>(null);
 
     const handleError = useCallback((error: any) => {
         setIsError({
@@ -103,12 +104,25 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
             .catch(handleError);
     }, [api]);
 
-    const loadDeviceInformation = useCallback(async () => {
-        const deviceInformation = await api.getDeviceInformation()
+    const updateAppSettings = useCallback((settings: import("./types.ts").IAppSettings) => {
+        return api.saveSettings(settings)
+            .then(() => {
+                setAppSettings(settings);
+            })
             .catch(handleError);
+    }, [api]);
+
+    const loadDeviceInformation = useCallback(async () => {
+        const [deviceInformation, settings] = await Promise.all([
+            api.getDeviceInformation(),
+            api.getSavedSettings()
+        ]).catch(handleError) as [IDeviceInformation, import("./types.ts").IAppSettings];
 
         if (deviceInformation) {
             setDeviceInformation(deviceInformation);
+        }
+        if (settings) {
+            setAppSettings(settings);
         }
     }, [api]);
 
@@ -164,6 +178,8 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
         //         setSmartWheelEnabled,
         getDpiStages,
         setDpiStages,
+        appSettings,
+        updateAppSettings
     };
 
     return (
