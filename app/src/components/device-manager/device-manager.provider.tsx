@@ -134,7 +134,12 @@ function DeviceManagerProviderComponent(props: PropsWithChildren<DeviceManagerPr
                 .then(() => {
                     setIsInitialized(true);
                 })
-                .catch(handleError)
+                .catch((err) => {
+                    console.error("Failed to initialize device manager:", err);
+                    // We still set initialized to true so the UI can move past the loading state
+                    // and display the error message captured by handleError
+                    setIsInitialized(true);
+                })
                 .finally(() => {
                     setIsLoading(false);
                 });
