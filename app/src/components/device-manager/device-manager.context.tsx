@@ -19,6 +19,8 @@ export type DeviceManagerContextState = {
     //     setSmartWheelEnabled: (enabled: boolean) => Promise<void>;
     getDpiStages: () => Promise<Array<DpiStage>>;
     setDpiStages: (stages: Array<DpiStage>) => Promise<void>;
+    appSettings: import("./types.ts").IAppSettings | null;
+    updateAppSettings: (settings: import("./types.ts").IAppSettings) => Promise<void>;
 };
 
 /**

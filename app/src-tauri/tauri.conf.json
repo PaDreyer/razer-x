@@ -22,14 +22,14 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "url": "/splashscreen.html",
-        "backgroundColor": "#1a1f2e",
+        "backgroundColor": "#0a0a0a",
         "visible": false
       },
       {
         "label": "main",
         "title": "RazerX",
         "width": 1000,
-        "height": 820,
+        "height": 730,
         "resizable": false,
         "visible": false
       }

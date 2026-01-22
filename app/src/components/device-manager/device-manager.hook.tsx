@@ -19,6 +19,8 @@ export const useDeviceManager = () => {
         //         setSmartWheelEnabled,
         getDpiStages,
         setDpiStages,
+        appSettings,
+        updateAppSettings,
     } = useContext(DeviceManagerContext);
 
     return {
@@ -34,5 +36,7 @@ export const useDeviceManager = () => {
         //         setSmartWheelEnabled,
         getDpiStages,
         setDpiStages,
+        appSettings,
+        updateAppSettings,
     }
 }

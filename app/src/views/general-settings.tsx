@@ -1,48 +1,26 @@
-import { Checkbox } from "../components/checkbox";
 import { memo } from "react";
-import { useDeviceManager } from "../components/device-manager";
+import { PopoverColorPicker } from "../components/popover-colorpicker";
+import { RGBColor, useDeviceManager } from "../components/device-manager";
 
 export const GeneralSettings = memo(function GeneralSettings() {
     const deviceManager = useDeviceManager();
-    //     const smartWheelEnabled = deviceManager.deviceInformation?.smartWheelEnabled ?? false;
-    const mouseWheelInverted = deviceManager.deviceInformation?.mouseWheelInverted ?? false;
 
-    //     const setSmartWheelEnabled = (enabled: boolean) => {
-    //         deviceManager.setSmartWheelEnabled(enabled)
-    //             .catch((error) => {
-    //                 console.error(`Fehler beim Aktivieren des Smartwheels: ${error.message}`);
-    //             });
-    //     }
-
-    const setMouseWheelInverted = (inverted: boolean) => {
-        deviceManager.setMouseWheelInverted(inverted)
-            .catch((error) => {
-                console.error(`Fehler beim Invertieren des Mausrads: ${error.message}`);
-            });
-    }
-
-    const isMacOs = deviceManager.deviceInformation?.targetOs === "macos"
+    if (!deviceManager?.deviceInformation) return null;
 
     return (
-        <div className="flex-col items-center">
-            {/* 
-            <div>
-                <Checkbox
-                    label={"Smartwheel aktivieren"}
-                    checked={smartWheelEnabled}
-                    onChange={(checked) => setSmartWheelEnabled(checked)}
+        <div className="flex flex-col">
+            <div className="flex flex-col items-start">
+                <PopoverColorPicker
+                    color={deviceManager.deviceInformation.backlightColor}
+                    onChange={(color) => deviceManager.setBacklightColor(color as RGBColor)}
+                    presetColors={[
+                        { r: 255, g: 255, b: 255 },
+                        { r: 0, g: 255, b: 22 },
+                        { r: 0, g: 15, b: 255 },
+                        { r: 255, g: 0, b: 0 },
+                    ]}
                 />
             </div>
-*/}
-            {isMacOs &&
-                <div>
-                    <Checkbox
-                        label={"Natürliches Scrollen"}
-                        checked={mouseWheelInverted}
-                        onChange={(checked) => setMouseWheelInverted(checked)}
-                    />
-                </div>
-            }
         </div>
     )
 });

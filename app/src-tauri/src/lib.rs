@@ -111,54 +111,60 @@ pub fn create_app() -> Application {
                     // Wait briefly for splashscreen to load
                     tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                     
-                    println!("Emitting loading-status: Checking for updates...");
-                    let _ = handle.emit_to("splashscreen", "loading-status", "Checking for updates...");
-                    
-                    match handle.updater().expect("failed to get updater").check().await {
-                        Ok(Some(update)) => {
-                            let msg = format!("Update available: {}", update.version);
-                            log::info!("{}", msg);
-                            println!("{}", msg);
-                            let _ = handle.emit_to("splashscreen", "update-available", &update.version);
+                    let settings = get_saved_settings(handle.clone()).unwrap_or_default();
 
-                            let mut downloaded = 0;
-                            if let Err(e) = update
-                                .download_and_install(
-                                    |chunk_length, content_length| {
-                                        downloaded += chunk_length;
-                                        if let Some(total) = content_length {
-                                            let progress = (downloaded as f64 / total as f64) * 100.0;
-                                            let _ = handle.emit_to("splashscreen", "update-progress", progress);
-                                        }
-                                    },
-                                    || {
-                                        let _ = handle.emit_to("splashscreen", "update-status", "installing");
-                                    },
-                                )
-                                .await
-                            {
-                                let err_msg = format!("Failed to download and install update: {}", e);
+                    if settings.auto_update {
+                        println!("Emitting loading-status: Checking for updates...");
+                        let _ = handle.emit_to("splashscreen", "loading-status", "Checking for updates...");
+                        
+                        match handle.updater().expect("failed to get updater").check().await {
+                            Ok(Some(update)) => {
+                                let msg = format!("Update available: {}", update.version);
+                                log::info!("{}", msg);
+                                println!("{}", msg);
+                                let _ = handle.emit_to("splashscreen", "update-available", &update.version);
+
+                                let mut downloaded = 0;
+                                if let Err(e) = update
+                                    .download_and_install(
+                                        |chunk_length, content_length| {
+                                            downloaded += chunk_length;
+                                            if let Some(total) = content_length {
+                                                let progress = (downloaded as f64 / total as f64) * 100.0;
+                                                let _ = handle.emit_to("splashscreen", "update-progress", progress);
+                                            }
+                                        },
+                                        || {
+                                            let _ = handle.emit_to("splashscreen", "update-status", "installing");
+                                        },
+                                    )
+                                    .await
+                                {
+                                    let err_msg = format!("Failed to download and install update: {}", e);
+                                    log::error!("{}", err_msg);
+                                    println!("{}", err_msg);
+                                    let _ = handle.emit_to("splashscreen", "update-error", err_msg);
+                                } else {
+                                    let success_msg = "Update installed successfully";
+                                    log::info!("{}", success_msg);
+                                    println!("{}", success_msg);
+                                    let _ = handle.emit_to("splashscreen", "update-status", "finished");
+                                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                                    handle.restart();
+                                }
+                            }
+                            Ok(None) => {
+                                log::info!("No update available");
+                                println!("No update available");
+                            }
+                            Err(e) => {
+                                let err_msg = format!("Failed to check for updates: {}", e);
                                 log::error!("{}", err_msg);
                                 println!("{}", err_msg);
-                                let _ = handle.emit_to("splashscreen", "update-error", err_msg);
-                            } else {
-                                let success_msg = "Update installed successfully";
-                                log::info!("{}", success_msg);
-                                println!("{}", success_msg);
-                                let _ = handle.emit_to("splashscreen", "update-status", "finished");
-                                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                                handle.restart();
                             }
                         }
-                        Ok(None) => {
-                            log::info!("No update available");
-                            println!("No update available");
-                        }
-                        Err(e) => {
-                            let err_msg = format!("Failed to check for updates: {}", e);
-                            log::error!("{}", err_msg);
-                            println!("{}", err_msg);
-                        }
+                    } else {
+                        println!("Auto-update disabled, skipping check.");
                     }
                     
                     println!("Emitting loading-status: Loading assets...");
